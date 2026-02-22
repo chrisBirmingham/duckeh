@@ -8,4 +8,4 @@ duckdb_info();
 ?>
 --EXPECT--
 The extension duckdb is loaded and working!
-Library version v1.2.2
+Library version v1.4.4
