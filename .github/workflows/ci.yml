@@ -94,7 +94,7 @@ jobs:
           $ext = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "php_duckdb.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $ext) {
             $ext = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "duckdb.dll" -ErrorAction SilentlyContinue |
-              Where-Object { $_.FullName -notmatch '[\\/\\\\]lib[\\/\\\\]' } | Select-Object -First 1
+              Where-Object { $_.FullName -notmatch '[\\/]lib[\\/]' } | Select-Object -First 1
           }
           if (-not $ext) { throw "Built extension DLL not found" }
           "PHP_EXT_DIR=$($ext.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
@@ -110,6 +110,7 @@ jobs:
       - name: Test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        working-directory: ${{ github.workspace }}
         run: |
           $env:Path = "$env:GITHUB_WORKSPACE\lib;$env:Path"
           if (-not $env:PHP_EXT_DIR) { throw "PHP_EXT_DIR not set" }
