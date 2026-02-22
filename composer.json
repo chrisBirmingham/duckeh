@@ -1,5 +1,5 @@
 {
-    "name": "saturio/duckdb-ext",
+    "name": "saturio/duckdb",
     "description": "PHP extension for DuckDB",
     "type": "php-ext",
     "license": "MIT",
