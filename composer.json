@@ -9,5 +9,10 @@
             "email": "dani@satur.io"
         }
     ],
-    "require": {}
+    "require": {
+        "php": ">=8.0"
+    },
+    "provide": {
+        "ext-duckdb": "*"
+    }
 }
