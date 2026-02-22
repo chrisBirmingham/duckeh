@@ -49,12 +49,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $version = php -r "echo PHP_VERSION;"
+          $major = php -r "echo PHP_MAJOR_VERSION;"
+          $minor = php -r "echo PHP_MINOR_VERSION;"
           $zts = php -r "echo PHP_ZTS ? 'ts' : 'nts';"
           $arch = "x64"
-          $vc = "vs16"
+          $mm = "$major.$minor"
+          $vc = if ([int]$major -gt 8 -or ([int]$major -eq 8 -and [int]$minor -ge 4)) { "vs17" } else { "vs16" }
+          $tsSuffix = if ($zts -eq "nts") { "-nts" } else { "" }
           $zip = Join-Path $env:RUNNER_TEMP "php-devel.zip"
-          $url = "https://windows.php.net/downloads/releases/php-devel-$version-$zts-Win32-$vc-$arch.zip"
+          $url = "https://windows.php.net/downloads/releases/latest/php-devel-pack-$mm$tsSuffix-Win32-$vc-$arch-latest.zip"
           Invoke-WebRequest -Uri $url -OutFile $zip
           $dest = Join-Path $env:RUNNER_TEMP "php-devel"
           Expand-Archive -Path $zip -DestinationPath $dest -Force
