@@ -98,4 +98,5 @@ jobs:
         shell: cmd
         run: |
           set PATH=%GITHUB_WORKSPACE%\lib;%PATH%
+          nmake
           nmake test
