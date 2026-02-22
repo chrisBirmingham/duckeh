@@ -1,13 +1,15 @@
 name: Release PIE Install Check
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["Windows"]
+    types: [completed]
 
 jobs:
   pie-install:
     name: PIE install (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    if: ${{ github.event.workflow_run.event == 'release' }}
     strategy:
       fail-fast: false
       matrix:
