@@ -110,7 +110,7 @@ $env:Path += ";$target"
 PIE installs PHP extensions published on Packagist. Once this package is published, install it with:
 
 ```sh
-pie install saturio/duckdb-ext
+pie install saturio/duckdb
 ```
 
 If PIE cannot enable the extension automatically, add this to your INI:
@@ -124,11 +124,21 @@ extension=duckdb
 If you installed `libduckdb` outside the standard system paths, pass the prefix that contains `include/duckdb.h` and `lib/libduckdb.*`:
 
 ```sh
-pie install saturio/duckdb-ext --with-duckdb-dir=/path/to/duckdb
+pie install saturio/duckdb --with-duckdb-dir=/path/to/duckdb
 ```
 
 You can see available configure options with:
 
 ```sh
-pie info saturio/duckdb-ext
+pie info saturio/duckdb
+```
+
+PIE lists the available configure options for an extension in `pie info`. Use those options with `pie install`.
+
+If `pie` reports that `--with-duckdb-dir` does not exist, install a version that includes this option and confirm it appears in `pie info` before retrying.
+
+As a fallback, you can also pass include and library paths via environment variables:
+
+```sh
+CPPFLAGS="-I/path/to/duckdb/include" LDFLAGS="-L/path/to/duckdb/lib" pie install saturio/duckdb
 ```

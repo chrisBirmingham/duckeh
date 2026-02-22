@@ -14,5 +14,13 @@
     },
     "provide": {
         "ext-duckdb": "*"
+    },
+    "extra": {
+        "pie": {
+            "configure-options": {
+                "--enable-duckdb": "Enable duckdb support",
+                "--with-duckdb-dir": "DuckDB installation prefix (contains include/duckdb.h and lib/libduckdb.*)"
+            }
+        }
     }
 }
