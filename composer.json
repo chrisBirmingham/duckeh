@@ -15,12 +15,18 @@
     "provide": {
         "ext-duckdb": "*"
     },
-    "extra": {
-        "pie": {
-            "configure-options": {
-                "--enable-duckdb": "Enable duckdb support",
-                "--with-duckdb-dir": "DuckDB installation prefix (contains include/duckdb.h and lib/libduckdb.*)"
+    "php-ext": {
+        "configure-options": [
+            {
+                "name": "enable-duckdb",
+                "description": "Enable duckdb support",
+                "needs-value": false
+            },
+            {
+                "name": "with-duckdb-dir",
+                "description": "DuckDB installation prefix (contains include/duckdb.h and lib/libduckdb.*)",
+                "needs-value": true
             }
-        }
+        ]
     }
 }
