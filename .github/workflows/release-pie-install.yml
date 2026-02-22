@@ -65,7 +65,12 @@ jobs:
           $env:Path += ";$target"
 
       - name: Install extension (PIE)
-        run: pie install saturio/duckdb --allow-non-interactive-project-install --skip-enable-extension
+        if: runner.os != 'Linux'
+        run: pie install saturio/duckdb
+
+      - name: Install extension (PIE) Linux
+        if: runner.os == 'Linux'
+        run: sudo pie install saturio/duckdb
 
       - name: Smoke test (PHP, Unix)
         if: runner.os != 'Windows'
