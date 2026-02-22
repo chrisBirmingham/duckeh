@@ -52,14 +52,6 @@ typedef struct duckdb_vector_t
     zend_object std;
 } duckdb_vector_t;
 
-typedef struct duckdb_nested_vector_t
-{
-    bool initialised;
-    uint64_t row_index;
-    duckdb_vector_t *vector;
-    zend_object std;
-} duckdb_nested_vector_t;
-
 typedef struct duckdb_timestamp_t
 {
     duckdb_timestamp timestamp;
@@ -130,9 +122,3 @@ static inline duckdb_time_t *duckdb_time_t_from_obj(zend_object *obj)
     return (duckdb_time_t *)((char *)(obj)-XtOffsetOf(duckdb_time_t, std));
 }
 #define Z_DUCKDB_TIME_P(zv) duckdb_time_t_from_obj(Z_OBJ_P(zv))
-
-static inline duckdb_nested_vector_t *duckdb_nested_vector_t_from_obj(zend_object *obj)
-{
-    return (duckdb_nested_vector_t *)((char *)(obj)-XtOffsetOf(duckdb_nested_vector_t, std));
-}
-#define Z_DUCKDB_NESTED_VECTOR_P(zv) duckdb_nested_vector_t_from_obj(Z_OBJ_P(zv))

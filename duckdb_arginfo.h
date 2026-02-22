@@ -75,20 +75,6 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_DuckDB_Value_Time___toString arginfo_class_DuckDB_Value_Timestamp___toString
 
-#define arginfo_class_DuckDB_Value_Struct_childCount arginfo_class_DuckDB_Result_columnCount
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_Value_Struct_childName, 0, 1, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO(0, index, IS_LONG, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_Value_Struct_getChild, 0, 1, DuckDB\\Vector, 0)
-	ZEND_ARG_TYPE_INFO(0, index, IS_LONG, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_Value_Struct_toArray, 0, 0, IS_ARRAY, 0)
-ZEND_END_ARG_INFO()
-
-#define arginfo_class_DuckDB_Value_Struct___toString arginfo_class_DuckDB_Value_Timestamp___toString
 
 ZEND_FUNCTION(duckdb_info);
 ZEND_METHOD(DuckDB_DuckDB, __construct);
@@ -117,11 +103,6 @@ ZEND_METHOD(DuckDB_Value_Time, getMinutes);
 ZEND_METHOD(DuckDB_Value_Time, getSeconds);
 ZEND_METHOD(DuckDB_Value_Time, getMicroseconds);
 ZEND_METHOD(DuckDB_Value_Time, __toString);
-ZEND_METHOD(DuckDB_Value_Struct, childCount);
-ZEND_METHOD(DuckDB_Value_Struct, childName);
-ZEND_METHOD(DuckDB_Value_Struct, getChild);
-ZEND_METHOD(DuckDB_Value_Struct, toArray);
-ZEND_METHOD(DuckDB_Value_Struct, __toString);
 
 static const zend_function_entry ext_functions[] = {
 	ZEND_FE(duckdb_info, arginfo_duckdb_info)
@@ -183,15 +164,6 @@ static const zend_function_entry class_DuckDB_Value_Time_methods[] = {
 	ZEND_ME(DuckDB_Value_Time, getSeconds, arginfo_class_DuckDB_Value_Time_getSeconds, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_Value_Time, getMicroseconds, arginfo_class_DuckDB_Value_Time_getMicroseconds, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_Value_Time, __toString, arginfo_class_DuckDB_Value_Time___toString, ZEND_ACC_PUBLIC)
-	ZEND_FE_END
-};
-
-static const zend_function_entry class_DuckDB_Value_Struct_methods[] = {
-	ZEND_ME(DuckDB_Value_Struct, childCount, arginfo_class_DuckDB_Value_Struct_childCount, ZEND_ACC_PUBLIC)
-	ZEND_ME(DuckDB_Value_Struct, childName, arginfo_class_DuckDB_Value_Struct_childName, ZEND_ACC_PUBLIC)
-	ZEND_ME(DuckDB_Value_Struct, getChild, arginfo_class_DuckDB_Value_Struct_getChild, ZEND_ACC_PUBLIC)
-	ZEND_ME(DuckDB_Value_Struct, toArray, arginfo_class_DuckDB_Value_Struct_toArray, ZEND_ACC_PUBLIC)
-	ZEND_ME(DuckDB_Value_Struct, __toString, arginfo_class_DuckDB_Value_Struct___toString, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -291,16 +263,6 @@ static zend_class_entry *register_class_DuckDB_Value_Time(void)
 
 	INIT_NS_CLASS_ENTRY(ce, "DuckDB\\Value", "Time", class_DuckDB_Value_Time_methods);
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_NOT_SERIALIZABLE);
-
-	return class_entry;
-}
-
-static zend_class_entry *register_class_DuckDB_Value_Struct(void)
-{
-	zend_class_entry ce, *class_entry;
-
-	INIT_NS_CLASS_ENTRY(ce, "DuckDB\\Value", "Struct", class_DuckDB_Value_Struct_methods);
-	class_entry = zend_register_internal_class_with_flags(&ce, NULL, 0);
 
 	return class_entry;
 }
