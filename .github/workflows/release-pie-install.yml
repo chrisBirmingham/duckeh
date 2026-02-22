@@ -65,7 +65,34 @@ jobs:
           $env:Path += ";$target"
 
       - name: Install extension (PIE)
-        run: pie install saturio/duckdb
+        run: pie install saturio/duckdb --allow-non-interactive-project-install --skip-enable-extension
 
-      - name: Smoke test (PHP)
-        run: php -r 'new \DuckDB\DuckDB(); echo "ok\n";'
+      - name: Smoke test (PHP, Unix)
+        if: runner.os != 'Windows'
+        run: |
+          set -euo pipefail
+          duckdb_ext="$(find "$HOME/.config/pie" -path "*/modules/duckdb.so" -type f | head -n 1 || true)"
+          if [ -z "$duckdb_ext" ]; then
+            ext_dir="$(php -r 'echo ini_get("extension_dir");')"
+            if [ -f "$ext_dir/duckdb.so" ]; then
+              duckdb_ext="$ext_dir/duckdb.so"
+            fi
+          fi
+          if [ -z "$duckdb_ext" ] || [ ! -f "$duckdb_ext" ]; then
+            echo "duckdb extension not found" >&2
+            exit 1
+          fi
+          php -d "extension=$duckdb_ext" -r 'new \DuckDB\DuckDB(); echo "ok\n";'
+
+      - name: Smoke test (PHP, Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $duckdb = Get-ChildItem -Path "$env:USERPROFILE\.config\pie" -Recurse -Filter "duckdb.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $duckdb) {
+            $extDir = php -r "echo ini_get('extension_dir');"
+            $candidate = Join-Path $extDir "duckdb.dll"
+            if (Test-Path $candidate) { $duckdb = Get-Item $candidate }
+          }
+          if (-not $duckdb) { throw "duckdb extension not found" }
+          php -d "extension=$($duckdb.FullName)" -r "new \DuckDB\DuckDB(); echo \"ok`n\";"
