@@ -83,9 +83,22 @@ jobs:
         shell: cmd
         working-directory: ${{ github.workspace }}
         run: |
-          "%PHP_DEV_BIN%\phpize.bat"
-          .\configure --enable-duckdb
+          call "%PHP_DEV_BIN%\phpize.bat"
+          call .\configure --enable-duckdb
           nmake
+
+      - name: Locate Extension (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ext = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "php_duckdb.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $ext) {
+            $ext = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Recurse -Filter "duckdb.dll" -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -notmatch '[\\/\\\\]lib[\\/\\\\]' } | Select-Object -First 1
+          }
+          if (-not $ext) { throw "Built extension DLL not found" }
+          "PHP_EXT_DIR=$($ext.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "PHP_EXT_DLL=$($ext.Name)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Test (Unix)
         if: runner.os != 'Windows'
@@ -96,9 +109,12 @@ jobs:
 
       - name: Test (Windows)
         if: runner.os == 'Windows'
-        shell: cmd
-        working-directory: ${{ github.workspace }}
+        shell: pwsh
         run: |
-          set PATH=%GITHUB_WORKSPACE%\lib;%PATH%
-          nmake
-          nmake test
+          $env:Path = "$env:GITHUB_WORKSPACE\lib;$env:Path"
+          if (-not $env:PHP_EXT_DIR) { throw "PHP_EXT_DIR not set" }
+          if (-not $env:PHP_EXT_DLL) { $env:PHP_EXT_DLL = "php_duckdb.dll" }
+          $env:TEST_PHP_EXECUTABLE = "php"
+          $env:TEST_PHP_ARGS = "-n -d extension_dir=$env:PHP_EXT_DIR -d extension=$env:PHP_EXT_DLL"
+          $env:REPORT_EXIT_STATUS = "1"
+          php run-tests.php -q
