@@ -8,14 +8,25 @@ if (PHP_DUCKDB != 'no') {
 	if (duckdb_dir == null || duckdb_dir == '' || duckdb_dir == 'no' || duckdb_dir == 'yes') {
 		duckdb_dir = 'lib';
 	}
-	duckdb_dir = String(duckdb_dir);
-	duckdb_dir = duckdb_dir.replace(/\//g, "\\");
+	duckdb_dir = String(duckdb_dir).replace(/\//g, "\\");
 
-	ADD_INCLUDE(duckdb_dir);
-	ADD_INCLUDE(duckdb_dir + "\\include");
-	ADD_LIBPATH(duckdb_dir);
-	ADD_LIBPATH(duckdb_dir + "\\lib");
-	ADD_LIB("duckdb");
+	var include_dirs = duckdb_dir + "\\include;" + duckdb_dir;
+	var lib_dirs = duckdb_dir + "\\lib;" + duckdb_dir;
 
-	EXTENSION('duckdb', 'duckdb.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+	var have_headers = CHECK_HEADER_ADD_INCLUDE("duckdb.h", "CFLAGS_DUCKDB", include_dirs);
+	var have_lib = CHECK_LIB("duckdb.lib", "duckdb", lib_dirs);
+
+	if (!have_headers) {
+		WARNING("duckdb.h not found. Use --with-duckdb-dir to specify the DuckDB install prefix.");
+	}
+	if (!have_lib) {
+		WARNING("duckdb.lib not found. Use --with-duckdb-dir to specify the DuckDB install prefix.");
+	}
+
+	if (have_headers && have_lib) {
+		ADD_FLAG("CFLAGS", "$(CFLAGS_DUCKDB)");
+		EXTENSION('duckdb', 'duckdb.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
+	} else {
+		WARNING("duckdb extension disabled because DuckDB headers/libs were not found.");
+	}
 }
