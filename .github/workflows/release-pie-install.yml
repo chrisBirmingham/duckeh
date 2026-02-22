@@ -66,13 +66,17 @@ jobs:
           [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$target", "User")
           $env:Path += ";$target"
 
-      - name: Install extension (PIE)
-        if: runner.os != 'Linux'
+      - name: Install extension (PIE) macOS
+        if: runner.os == 'macOS'
         run: pie install saturio/duckdb
 
       - name: Install extension (PIE) Linux
         if: runner.os == 'Linux'
         run: sudo pie install saturio/duckdb
+
+      - name: Install extension (PIE) Windows
+        if: runner.os == 'Windows'
+        run: pie install saturio/duckdb --allow-non-interactive-project-install --skip-enable-extension
 
       - name: Smoke test (PHP, Unix)
         if: runner.os != 'Windows'
