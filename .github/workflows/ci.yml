@@ -100,9 +100,17 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           set PATH=%GITHUB_WORKSPACE%\lib;%PATH%
-          if not exist Makefile (
-            if exist configure.js copy /b configure.js +,, >nul
-            call .\configure --enable-duckdb
+          set EXT_PATH=
+          for /f "delims=" %%F in ('where /r "%GITHUB_WORKSPACE%" php_duckdb.dll 2^>nul') do if not defined EXT_PATH set EXT_PATH=%%F
+          if not defined EXT_PATH (
+            echo Built extension DLL not found
+            exit /b 1
           )
-          nmake
-          nmake test
+          for %%F in ("%EXT_PATH%") do (
+            set EXT_DIR=%%~dpF
+            set EXT_NAME=%%~nxF
+          )
+          set TEST_PHP_EXECUTABLE=php
+          set TEST_PHP_ARGS=-n -d extension_dir="%EXT_DIR%" -d extension="%EXT_NAME%"
+          set REPORT_EXIT_STATUS=1
+          php run-tests.php -q
