@@ -99,11 +99,18 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $duckdb = Get-ChildItem -Path "$env:USERPROFILE\.config\pie" -Recurse -Filter "duckdb.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $duckdb) {
-            $extDir = php -r "echo ini_get('extension_dir');"
-            $candidate = Join-Path $extDir "duckdb.dll"
-            if (Test-Path $candidate) { $duckdb = Get-Item $candidate }
+          $iniLine = php --ini | Select-String "Loaded Configuration File" | ForEach-Object { $_.Line }
+          $ini = $iniLine -replace 'Loaded Configuration File:\s*', ''
+          $ini = $ini.Trim()
+          if (-not $ini -or $ini -eq '(none)') {
+            $dirLine = php --ini | Select-String "Configuration File \\(php.ini\\) Path" | ForEach-Object { $_.Line }
+            $iniDir = ($dirLine -replace 'Configuration File \\(php.ini\\) Path:\s*', '').Trim()
+            if (-not $iniDir) { throw "Unable to determine PHP ini path" }
+            $ini = Join-Path $iniDir "php.ini"
           }
-          if (-not $duckdb) { throw "duckdb extension not found" }
-          php -d "extension=$($duckdb.FullName)" -r "new \DuckDB\DuckDB(); echo \"ok`n\";"
+          if (-not (Test-Path $ini)) { New-Item -ItemType File -Path $ini -Force | Out-Null }
+          $content = Get-Content $ini -Raw
+          if ($content -notmatch '(?m)^\\s*extension\\s*=\\s*duckdb\\s*$') {
+            Add-Content -Path $ini -Value "`r`nextension=duckdb"
+          }
+          php -r "new \\DuckDB\\DuckDB(); echo \"ok`n\";"
