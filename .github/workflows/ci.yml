@@ -27,17 +27,15 @@ jobs:
           tools: phpize, php-config
 
       - name: Download DuckDB (Unix)
-        if: runner.os != 'Windows'
         run: |
           mkdir -p lib
           curl -L -o /tmp/duckdb.zip "https://github.com/duckdb/duckdb/releases/download/v1.4.4/${{ matrix.duckdb_asset }}"
           unzip -o /tmp/duckdb.zip -d lib
 
       - name: Build (Unix)
-        if: runner.os != 'Windows'
         run: |
           phpize
-          ./configure --enable-duckdb
+          ./configure --enable-duckdb --with-duckdb-dir=./lib
           make -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 
       - name: Test (Unix)
