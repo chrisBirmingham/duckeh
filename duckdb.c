@@ -11,6 +11,9 @@
 #include "php.h"
 #include "ext/standard/info.h"
 #include "php_duckdb.h"
+#ifndef ZEND_ACC_NOT_SERIALIZABLE
+#define ZEND_ACC_NOT_SERIALIZABLE 0
+#endif
 #include "duckdb_arginfo.h"
 #include "zend_exceptions.h"
 #include "duckdb_structs.h"
@@ -147,6 +150,7 @@ static zend_object *duckdb_new(zend_class_entry *ce)
 
     zend_object_std_init(&duckdb->std, ce);
     object_properties_init(&duckdb->std, ce);
+    duckdb->std.handlers = &duckdb_object_handlers;
     return &duckdb->std;
 }
 
@@ -156,6 +160,7 @@ static zend_object *prepared_statement_new(zend_class_entry *ce)
 
     zend_object_std_init(&prepared_statement->std, ce);
     object_properties_init(&prepared_statement->std, ce);
+    prepared_statement->std.handlers = &prepared_statement_object_handlers;
     return &prepared_statement->std;
 }
 
@@ -165,6 +170,7 @@ static zend_object *duckdb_result_new(zend_class_entry *ce)
 
     zend_object_std_init(&result->std, ce);
     object_properties_init(&result->std, ce);
+    result->std.handlers = &result_object_handlers;
 
     return &result->std;
 }
@@ -175,6 +181,7 @@ static zend_object *duckdb_data_chunk_new(zend_class_entry *ce)
 
     zend_object_std_init(&data_chunk->std, ce);
     object_properties_init(&data_chunk->std, ce);
+    data_chunk->std.handlers = &data_chunk_object_handlers;
 
     return &data_chunk->std;
 }
@@ -185,6 +192,7 @@ static zend_object *duckdb_vector_new(zend_class_entry *ce)
 
     zend_object_std_init(&vector->std, ce);
     object_properties_init(&vector->std, ce);
+    vector->std.handlers = &vector_object_handlers;
 
     return &vector->std;
 }
@@ -195,6 +203,7 @@ static zend_object *duckdb_timestamp_new(zend_class_entry *ce)
 
     zend_object_std_init(&timestamp->std, ce);
     object_properties_init(&timestamp->std, ce);
+    timestamp->std.handlers = &timestamp_object_handlers;
 
     return &timestamp->std;
 }
@@ -205,6 +214,7 @@ static zend_object *duckdb_date_new(zend_class_entry *ce)
 
     zend_object_std_init(&date->std, ce);
     object_properties_init(&date->std, ce);
+    date->std.handlers = &date_object_handlers;
 
     return &date->std;
 }
@@ -215,6 +225,7 @@ static zend_object *duckdb_time_new(zend_class_entry *ce)
 
     zend_object_std_init(&time->std, ce);
     object_properties_init(&time->std, ce);
+    time->std.handlers = &time_object_handlers;
 
     return &time->std;
 }
@@ -1311,51 +1322,43 @@ PHP_MINIT_FUNCTION(duckdb)
 
     duckdb_class_entry = register_class_DuckDB_DuckDB();
     duckdb_class_entry->create_object = duckdb_new;
-    duckdb_class_entry->default_object_handlers = &duckdb_object_handlers;
     duckdb_object_handlers.offset = XtOffsetOf(duckdb_t, std);
     duckdb_object_handlers.free_obj = duckdb_free_obj;
     duckdb_object_handlers.get_debug_info = duckdb_get_debug_info;
 
     duckdb_prepared_statement_class_entry = register_class_DuckDB_PreparedStatement();
     duckdb_prepared_statement_class_entry->create_object = prepared_statement_new;
-    duckdb_prepared_statement_class_entry->default_object_handlers = &prepared_statement_object_handlers;
     prepared_statement_object_handlers.offset = XtOffsetOf(duckdb_prepared_statement_t, std);
     prepared_statement_object_handlers.free_obj = prepared_statement_free_obj;
 
     duckdb_result_class_entry = register_class_DuckDB_Result();
     duckdb_result_class_entry->create_object = duckdb_result_new;
-    duckdb_result_class_entry->default_object_handlers = &result_object_handlers;
     result_object_handlers.offset = XtOffsetOf(duckdb_result_t, std);
     result_object_handlers.free_obj = duckdb_result_free_obj;
     result_object_handlers.get_debug_info = duckdb_result_get_debug_info;
 
     duckdb_data_chunk_class_entry = register_class_DuckDB_DataChunk();
     duckdb_data_chunk_class_entry->create_object = duckdb_data_chunk_new;
-    duckdb_data_chunk_class_entry->default_object_handlers = &data_chunk_object_handlers;
     data_chunk_object_handlers.free_obj = duckdb_data_chunk_free_obj;
     data_chunk_object_handlers.offset = XtOffsetOf(duckdb_data_chunk_t, std);
 
     duckdb_vector_class_entry = register_class_DuckDB_Vector();
     duckdb_vector_class_entry->create_object = duckdb_vector_new;
-    duckdb_vector_class_entry->default_object_handlers = &vector_object_handlers;
     vector_object_handlers.free_obj = duckdb_vector_free_obj;
     vector_object_handlers.offset = XtOffsetOf(duckdb_vector_t, std);
 
     duckdb_timestamp_class_entry = register_class_DuckDB_Value_Timestamp();
     duckdb_timestamp_class_entry->create_object = duckdb_timestamp_new;
-    duckdb_timestamp_class_entry->default_object_handlers = &timestamp_object_handlers;
     timestamp_object_handlers.free_obj = duckdb_timestamp_free_obj;
     timestamp_object_handlers.offset = XtOffsetOf(duckdb_timestamp_t, std);
 
     duckdb_date_class_entry = register_class_DuckDB_Value_Date();
     duckdb_date_class_entry->create_object = duckdb_date_new;
-    duckdb_date_class_entry->default_object_handlers = &date_object_handlers;
     date_object_handlers.free_obj = duckdb_date_free_obj;
     date_object_handlers.offset = XtOffsetOf(duckdb_date_t, std);
 
     duckdb_time_class_entry = register_class_DuckDB_Value_Time();
     duckdb_time_class_entry->create_object = duckdb_time_new;
-    duckdb_time_class_entry->default_object_handlers = &time_object_handlers;
     time_object_handlers.free_obj = duckdb_time_free_obj;
     time_object_handlers.offset = XtOffsetOf(duckdb_time_t, std);
 

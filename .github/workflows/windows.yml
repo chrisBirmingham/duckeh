@@ -61,8 +61,6 @@ jobs:
           if ($dll) { Copy-Item $dll.FullName (Join-Path $libDir "duckdb.dll") -Force }
 
       - name: Build extension
-        id: build
-        continue-on-error: true
         uses: php/php-windows-builder/extension@v1
         with:
           php-version: ${{ matrix.php-version }}
@@ -73,31 +71,6 @@ jobs:
           extension-ref: ${{ github.sha }}
           build-directory: ${{ runner.temp }}\build
           run-tests: false
-
-      - name: Dump configure.js context
-        if: ${{ steps.build.outcome == 'failure' }}
-        shell: pwsh
-        run: |
-          $root = "${env:RUNNER_TEMP}\build"
-          $files = Get-ChildItem -Path $root -Recurse -Filter "configure.js" -ErrorAction SilentlyContinue
-          if (-not $files) {
-            Write-Host "configure.js not found under $root"
-            exit 0
-          }
-          foreach ($file in $files) {
-            Write-Host "=== $($file.FullName) ==="
-            $i = 0
-            Get-Content $file.FullName | ForEach-Object {
-              $i++
-              if ($i -ge 4120 -and $i -le 4160) {
-                "{0,5}: {1}" -f $i, $_
-              }
-            }
-          }
-
-      - name: Fail if build failed
-        if: ${{ steps.build.outcome == 'failure' }}
-        run: exit 1
 
       - name: Upload artifacts
         if: ${{ github.event_name == 'push' }}
