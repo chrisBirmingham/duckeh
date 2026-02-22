@@ -1,9 +1,18 @@
 ARG_ENABLE('duckdb', 'duckdb support', 'no');
+ARG_WITH('duckdb-dir', 'DuckDB installation prefix', 'no');
 
 if (PHP_DUCKDB != 'no') {
 	AC_DEFINE('HAVE_DUCKDB', 1, "Define to 1 if the PHP extension 'duckdb' is available.");
 
-	ADD_LIBPATH("lib");
+	var duckdb_dir = PHP_DUCKDB_DIR;
+	if (duckdb_dir == 'no' || duckdb_dir == 'yes') {
+		duckdb_dir = 'lib';
+	}
+
+	ADD_INCLUDE(duckdb_dir);
+	ADD_INCLUDE(duckdb_dir + "\\include");
+	ADD_LIBPATH(duckdb_dir);
+	ADD_LIBPATH(duckdb_dir + "\\lib");
 	ADD_LIB("duckdb");
 
 	EXTENSION('duckdb', 'duckdb.c', null, '/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1');
