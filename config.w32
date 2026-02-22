@@ -5,9 +5,11 @@ if (PHP_DUCKDB != 'no') {
 	AC_DEFINE('HAVE_DUCKDB', 1, "Define to 1 if the PHP extension 'duckdb' is available.");
 
 	var duckdb_dir = PHP_DUCKDB_DIR;
-	if (duckdb_dir == 'no' || duckdb_dir == 'yes') {
+	if (duckdb_dir == null || duckdb_dir == '' || duckdb_dir == 'no' || duckdb_dir == 'yes') {
 		duckdb_dir = 'lib';
 	}
+	duckdb_dir = String(duckdb_dir);
+	duckdb_dir = duckdb_dir.replace(/\//g, "\\");
 
 	ADD_INCLUDE(duckdb_dir);
 	ADD_INCLUDE(duckdb_dir + "\\include");
