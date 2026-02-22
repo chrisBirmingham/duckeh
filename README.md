@@ -79,6 +79,8 @@ Expand-Archive "$dest\libduckdb.zip" -DestinationPath $dest -Force
 $target = "C:\Program Files\DuckDB"
 New-Item -ItemType Directory -Force $target | Out-Null
 Copy-Item "$dest\*" $target -Recurse -Force
+$system = "C:\Windows"
+Copy-Item "$dest\duckdb.dll" "$system\duckdb.dll" -Force
 [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$target", "User")
 $env:Path += ";$target"
 ```
@@ -99,6 +101,8 @@ Expand-Archive "$dest\libduckdb.zip" -DestinationPath $dest -Force
 $target = "C:\Program Files\DuckDB"
 New-Item -ItemType Directory -Force $target | Out-Null
 Copy-Item "$dest\*" $target -Recurse -Force
+$system = "C:\Windows"
+Copy-Item "$dest\duckdb.dll" "$system\duckdb.dll" -Force
 [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$target", "User")
 $env:Path += ";$target"
 ```

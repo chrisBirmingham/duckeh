@@ -63,6 +63,8 @@ jobs:
           $target = "C:\Program Files\DuckDB"
           New-Item -ItemType Directory -Force $target | Out-Null
           Copy-Item "$dest\*" $target -Recurse -Force
+          $system = "C:\Windows"
+          Copy-Item "$dest\duckdb.dll" "$system\duckdb.dll" -Force
           [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$target", "User")
           $env:Path += ";$target"
 
@@ -113,4 +115,4 @@ jobs:
           if ($content -notmatch '(?m)^\\s*extension\\s*=\\s*duckdb\\s*$') {
             Add-Content -Path $ini -Value "`r`nextension=duckdb"
           }
-          php -r "new \\DuckDB\\DuckDB(); echo \"ok`n\";"
+          php -r 'new \DuckDB\DuckDB(); echo "ok\n";'
