@@ -1,6 +1,20 @@
 /* This is a generated file, edit the .stub.php file instead.
  * Stub hash: 58b04ffa7fa6c4c97ce914d5c24f61290743782d */
 
+#ifndef zend_register_internal_class_with_flags
+static inline zend_class_entry *duckdb_register_internal_class_with_flags(zend_class_entry *class_entry,
+                                                                          zend_class_entry *parent_ce,
+                                                                          uint32_t flags)
+{
+	zend_class_entry *registered = zend_register_internal_class_ex(class_entry, parent_ce);
+	if (registered != NULL) {
+		registered->ce_flags |= flags;
+	}
+	return registered;
+}
+#define zend_register_internal_class_with_flags duckdb_register_internal_class_with_flags
+#endif
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_duckdb_info, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 

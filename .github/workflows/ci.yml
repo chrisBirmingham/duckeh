@@ -45,17 +45,6 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile $zip
           Expand-Archive -Path $zip -DestinationPath lib -Force
 
-      - name: Regenerate arginfo (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          php build/gen_stub.php -f duckdb.stub.php
-
-      - name: Regenerate arginfo (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          php build\\gen_stub.php -f duckdb.stub.php
-
       - name: Setup MSVC
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
