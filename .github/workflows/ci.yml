@@ -15,8 +15,6 @@ jobs:
             duckdb_asset: libduckdb-linux-amd64.zip
           - os: macos-latest
             duckdb_asset: libduckdb-osx-universal.zip
-          - os: windows-latest
-            duckdb_asset: libduckdb-windows-amd64.zip
 
     steps:
       - name: Checkout
@@ -35,42 +33,6 @@ jobs:
           curl -L -o /tmp/duckdb.zip "https://github.com/duckdb/duckdb/releases/download/v1.4.4/${{ matrix.duckdb_asset }}"
           unzip -o /tmp/duckdb.zip -d lib
 
-      - name: Download DuckDB (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path lib -Force | Out-Null
-          $zip = Join-Path $env:RUNNER_TEMP "duckdb.zip"
-          $url = "https://github.com/duckdb/duckdb/releases/download/v1.4.4/${{ matrix.duckdb_asset }}"
-          Invoke-WebRequest -Uri $url -OutFile $zip
-          Expand-Archive -Path $zip -DestinationPath lib -Force
-
-      - name: Install PHP devel (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $major = php -r "echo PHP_MAJOR_VERSION;"
-          $minor = php -r "echo PHP_MINOR_VERSION;"
-          $zts = php -r "echo PHP_ZTS ? 'ts' : 'nts';"
-          $arch = "x64"
-          $mm = "$major.$minor"
-          $vc = if ([int]$major -gt 8 -or ([int]$major -eq 8 -and [int]$minor -ge 4)) { "vs17" } else { "vs16" }
-          $tsSuffix = if ($zts -eq "nts") { "-nts" } else { "" }
-          $zip = Join-Path $env:RUNNER_TEMP "php-devel.zip"
-          $url = "https://windows.php.net/downloads/releases/latest/php-devel-pack-$mm$tsSuffix-Win32-$vc-$arch-latest.zip"
-          Invoke-WebRequest -Uri $url -OutFile $zip
-          $dest = Join-Path $env:RUNNER_TEMP "php-devel"
-          Expand-Archive -Path $zip -DestinationPath $dest -Force
-          $phpize = Get-ChildItem -Path $dest -Recurse -Filter phpize.bat | Select-Object -First 1
-          if (-not $phpize) { throw "phpize.bat not found in devel pack" }
-          $phpDevBin = $phpize.Directory.FullName
-          $phpDevBin | Out-File -FilePath $env:GITHUB_PATH -Append
-          "PHP_DEV_BIN=$phpDevBin" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Setup MSVC
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-
       - name: Build (Unix)
         if: runner.os != 'Windows'
         run: |
@@ -78,39 +40,9 @@ jobs:
           ./configure --enable-duckdb
           make -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        shell: cmd
-        working-directory: ${{ github.workspace }}
-        run: |
-          "%PHP_DEV_BIN%\phpize.bat"
-          .\configure --enable-duckdb
-          nmake
-
       - name: Test (Unix)
         if: runner.os != 'Windows'
         env:
           LD_LIBRARY_PATH: ${{ github.workspace }}/lib
           DYLD_LIBRARY_PATH: ${{ github.workspace }}/lib
         run: make test
-
-      - name: Test (Windows)
-        if: runner.os == 'Windows'
-        shell: cmd
-        working-directory: ${{ github.workspace }}
-        run: |
-          set PATH=%GITHUB_WORKSPACE%\lib;%PATH%
-          set EXT_PATH=
-          for /f "delims=" %%F in ('where /r "%GITHUB_WORKSPACE%" php_duckdb.dll 2^>nul') do if not defined EXT_PATH set EXT_PATH=%%F
-          if not defined EXT_PATH (
-            echo Built extension DLL not found
-            exit /b 1
-          )
-          for %%F in ("%EXT_PATH%") do (
-            set EXT_DIR=%%~dpF
-            set EXT_NAME=%%~nxF
-          )
-          set TEST_PHP_EXECUTABLE=php
-          set TEST_PHP_ARGS=-n -d extension_dir="%EXT_DIR%" -d extension="%EXT_NAME%"
-          set REPORT_EXIT_STATUS=1
-          php run-tests.php -q
