@@ -45,6 +45,21 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile $zip
           Expand-Archive -Path $zip -DestinationPath lib -Force
 
+      - name: Install PHP devel (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = php -r "echo PHP_VERSION;"
+          $zts = php -r "echo PHP_ZTS ? 'ts' : 'nts';"
+          $arch = "x64"
+          $vc = "vs16"
+          $zip = Join-Path $env:RUNNER_TEMP "php-devel.zip"
+          $url = "https://windows.php.net/downloads/releases/php-devel-$version-$zts-Win32-$vc-$arch.zip"
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          $dest = Join-Path $env:RUNNER_TEMP "php-devel"
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          $dest | Out-File -FilePath $env:GITHUB_PATH -Append
+
       - name: Setup MSVC
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
