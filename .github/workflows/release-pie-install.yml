@@ -1,0 +1,71 @@
+name: Release PIE Install Check
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  pie-install:
+    name: PIE install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: macos-latest
+          - os: windows-latest
+
+    steps:
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: pie, phpize, php-config
+
+      - name: Install DuckDB (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          tmp="$(mktemp -d)"
+          curl -L "https://install.duckdb.org/v1.4.4/libduckdb-linux-amd64.zip" -o "$tmp/libduckdb.zip"
+          unzip -q "$tmp/libduckdb.zip" -d "$tmp"
+          sudo mkdir -p /usr/local/include /usr/local/lib
+          sudo install -m 644 "$tmp/duckdb.h" /usr/local/include/duckdb.h
+          sudo install -m 755 "$tmp/libduckdb.so" /usr/local/lib/libduckdb.so
+          sudo ldconfig
+
+      - name: Install DuckDB (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          tmp="$(mktemp -d)"
+          curl -L "https://install.duckdb.org/v1.4.4/libduckdb-osx-universal.zip" -o "$tmp/libduckdb.zip"
+          unzip -q "$tmp/libduckdb.zip" -d "$tmp"
+          sudo mkdir -p /usr/local/include /usr/local/lib
+          sudo install -m 644 "$tmp/duckdb.h" /usr/local/include/duckdb.h
+          sudo install -m 755 "$tmp/libduckdb.dylib" /usr/local/lib/libduckdb.dylib
+
+      - name: Install DuckDB (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vc = "$env:TEMP\vc_redist.x64.exe"
+          Invoke-WebRequest "https://aka.ms/vc14/vc_redist.x64.exe" -OutFile $vc
+          Start-Process -Wait -FilePath $vc -ArgumentList "/install","/passive","/norestart"
+
+          $version = "v1.4.4"
+          $zip = "libduckdb-windows-amd64.zip"
+          $dest = "$env:TEMP\duckdb"
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          Invoke-WebRequest "https://install.duckdb.org/$version/$zip" -OutFile "$dest\libduckdb.zip"
+          Expand-Archive "$dest\libduckdb.zip" -DestinationPath $dest -Force
+          $target = "C:\Program Files\DuckDB"
+          New-Item -ItemType Directory -Force $target | Out-Null
+          Copy-Item "$dest\*" $target -Recurse -Force
+          [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$target", "User")
+          $env:Path += ";$target"
+
+      - name: Install extension (PIE)
+        run: pie install saturio/duckdb
+
+      - name: Smoke test (PHP)
+        run: php -r 'new \DuckDB\DuckDB(); echo "ok\n";'
