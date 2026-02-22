@@ -22,32 +22,46 @@ AS_VAR_IF([PHP_DUCKDB], [no],, [
   AC_DEFINE([HAVE_DUCKDB], [1],
     [Define to 1 if the PHP extension 'duckdb' is available.])
 
-  dnl Default to bundled DuckDB artifacts under ext/lib
-  DUCKDB_DIR="$ext_srcdir/lib"
+  dnl Candidate locations:
+  dnl - bundled artifacts under ext/lib (CI)
+  dnl - standard system prefixes (/opt/homebrew, /usr/local, /usr, /opt/local)
+  DUCKDB_DIRS=""
   if test "$PHP_DUCKDB_DIR" != "no" && test "$PHP_DUCKDB_DIR" != "yes"; then
-    DUCKDB_DIR="$PHP_DUCKDB_DIR"
+    DUCKDB_DIRS="$PHP_DUCKDB_DIR"
+  else
+    DUCKDB_DIRS="$ext_srcdir/lib /opt/homebrew /usr/local /usr /opt/local"
   fi
 
   DUCKDB_INCLUDE_DIR=""
-  if test -f "$DUCKDB_DIR/duckdb.h"; then
-    DUCKDB_INCLUDE_DIR="$DUCKDB_DIR"
-  elif test -f "$DUCKDB_DIR/include/duckdb.h"; then
-    DUCKDB_INCLUDE_DIR="$DUCKDB_DIR/include"
-  fi
+  DUCKDB_LIB_DIR=""
+  for DUCKDB_DIR in $DUCKDB_DIRS; do
+    CANDIDATE_INCLUDE=""
+    if test -f "$DUCKDB_DIR/duckdb.h"; then
+      CANDIDATE_INCLUDE="$DUCKDB_DIR"
+    elif test -f "$DUCKDB_DIR/include/duckdb.h"; then
+      CANDIDATE_INCLUDE="$DUCKDB_DIR/include"
+    fi
+
+    CANDIDATE_LIB=""
+    if test -f "$DUCKDB_DIR/libduckdb.a" || test -f "$DUCKDB_DIR/libduckdb.so" || test -f "$DUCKDB_DIR/libduckdb.dylib"; then
+      CANDIDATE_LIB="$DUCKDB_DIR"
+    elif test -f "$DUCKDB_DIR/lib/libduckdb.a" || test -f "$DUCKDB_DIR/lib/libduckdb.so" || test -f "$DUCKDB_DIR/lib/libduckdb.dylib"; then
+      CANDIDATE_LIB="$DUCKDB_DIR/lib"
+    fi
+
+    if test -n "$CANDIDATE_INCLUDE" && test -n "$CANDIDATE_LIB"; then
+      DUCKDB_INCLUDE_DIR="$CANDIDATE_INCLUDE"
+      DUCKDB_LIB_DIR="$CANDIDATE_LIB"
+      break
+    fi
+  done
 
   if test -z "$DUCKDB_INCLUDE_DIR"; then
-    AC_MSG_ERROR([duckdb.h not found. Use --with-duckdb-dir to specify the DuckDB install prefix.])
-  fi
-
-  DUCKDB_LIB_DIR=""
-  if test -f "$DUCKDB_DIR/libduckdb.a" || test -f "$DUCKDB_DIR/libduckdb.so" || test -f "$DUCKDB_DIR/libduckdb.dylib"; then
-    DUCKDB_LIB_DIR="$DUCKDB_DIR"
-  elif test -f "$DUCKDB_DIR/lib/libduckdb.a" || test -f "$DUCKDB_DIR/lib/libduckdb.so" || test -f "$DUCKDB_DIR/lib/libduckdb.dylib"; then
-    DUCKDB_LIB_DIR="$DUCKDB_DIR/lib"
+    AC_MSG_ERROR([duckdb.h not found. Install libduckdb into a standard prefix (e.g. /usr/local or /opt/homebrew) or use --with-duckdb-dir.])
   fi
 
   if test -z "$DUCKDB_LIB_DIR"; then
-    AC_MSG_ERROR([libduckdb not found. Use --with-duckdb-dir to specify the DuckDB install prefix.])
+    AC_MSG_ERROR([libduckdb not found. Install libduckdb into a standard prefix (e.g. /usr/local or /opt/homebrew) or use --with-duckdb-dir.])
   fi
 
   PHP_ADD_INCLUDE([$DUCKDB_INCLUDE_DIR])
