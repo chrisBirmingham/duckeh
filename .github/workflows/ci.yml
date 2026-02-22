@@ -61,9 +61,11 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile $zip
           $dest = Join-Path $env:RUNNER_TEMP "php-devel"
           Expand-Archive -Path $zip -DestinationPath $dest -Force
-          $dest | Out-File -FilePath $env:GITHUB_PATH -Append
-          $bin = Join-Path $dest "bin"
-          $bin | Out-File -FilePath $env:GITHUB_PATH -Append
+          $phpize = Get-ChildItem -Path $dest -Recurse -Filter phpize.bat | Select-Object -First 1
+          if (-not $phpize) { throw "phpize.bat not found in devel pack" }
+          $phpDevBin = $phpize.Directory.FullName
+          $phpDevBin | Out-File -FilePath $env:GITHUB_PATH -Append
+          "PHP_DEV_BIN=$phpDevBin" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Setup MSVC
         if: runner.os == 'Windows'
@@ -80,8 +82,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: cmd
         run: |
-          phpize
-          configure --enable-duckdb
+          "%PHP_DEV_BIN%\phpize.bat"
+          "%PHP_DEV_BIN%\configure.bat" --enable-duckdb
           nmake
 
       - name: Test (Unix)
