@@ -72,14 +72,6 @@ jobs:
           build-directory: ${{ runner.temp }}\build
           run-tests: false
 
-      - name: Upload artifacts
-        if: ${{ github.event_name == 'push' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: duckdb-${{ matrix.php-version }}-${{ matrix.ts }}-${{ matrix.arch }}
-          path: ${{ runner.temp }}\build\artifacts
-          if-no-files-found: error
-
   release:
     needs: build
     runs-on: ubuntu-latest
