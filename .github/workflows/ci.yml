@@ -25,7 +25,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: '8.3'
           tools: phpize, php-config
 
       - name: Download DuckDB (Unix)
@@ -44,6 +44,17 @@ jobs:
           $url = "https://github.com/duckdb/duckdb/releases/download/v1.4.4/${{ matrix.duckdb_asset }}"
           Invoke-WebRequest -Uri $url -OutFile $zip
           Expand-Archive -Path $zip -DestinationPath lib -Force
+
+      - name: Regenerate arginfo (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          php build/gen_stub.php -f duckdb.stub.php
+
+      - name: Regenerate arginfo (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          php build\\gen_stub.php -f duckdb.stub.php
 
       - name: Setup MSVC
         if: runner.os == 'Windows'
