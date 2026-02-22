@@ -1,12 +1,8 @@
 name: Windows
 
 on:
-  push:
-    tags:
-      - "v*"
-    branches:
-      - "**"
-  pull_request:
+  release:
+    types: [created]
 
 permissions:
   contents: write
@@ -67,18 +63,14 @@ jobs:
           ts: ${{ matrix.ts }}
           arch: ${{ matrix.arch }}
           args: --enable-duckdb --with-duckdb-dir=${{ runner.temp }}\duckdb
-          extension-url: https://github.com/${{ github.repository }}
-          extension-ref: ${{ github.sha }}
-          build-directory: ${{ runner.temp }}\build
-          run-tests: false
 
   release:
-    needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+    needs: build
+    if: ${{ github.event_name == 'release' }}
     steps:
-      - name: Publish release assets
+      - name: Upload artifact to the release
         uses: php/php-windows-builder/release@v1
         with:
-          release: ${{ github.ref }}
+          release: ${{ github.event.release.tag_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
