@@ -10,6 +10,8 @@
 
 #include "php.h"
 #include "ext/standard/info.h"
+#include "Zend/zend_smart_str.h"
+#include "ext/json/php_json.h"
 #include "php_duckdb.h"
 #ifndef ZEND_ACC_NOT_SERIALIZABLE
 #define ZEND_ACC_NOT_SERIALIZABLE 0
@@ -193,6 +195,11 @@ static zend_object *duckdb_vector_new(zend_class_entry *ce)
     zend_object_std_init(&vector->std, ce);
     object_properties_init(&vector->std, ce);
     vector->std.handlers = &vector_object_handlers;
+    vector->vector = NULL;
+    vector->type = DUCKDB_TYPE_INVALID;
+    vector->logical_type = NULL;
+    vector->data = NULL;
+    vector->validity = NULL;
 
     return &vector->std;
 }
@@ -322,6 +329,78 @@ static inline void duckdb_string_t_to_zval(const duckdb_string_t *string, zval *
     }
 
     ZVAL_STRINGL(data, string->value.inlined.inlined, len);
+}
+
+static zend_string *duckdb_bignum_to_decimal_string(const unsigned char *bytes, size_t len, bool is_negative)
+{
+    size_t digits_cap = len * 3 + 1;
+    uint8_t *digits = emalloc(digits_cap);
+    size_t digits_len = 1;
+    digits[0] = 0;
+
+    for (size_t i = 0; i < len; i++)
+    {
+        uint32_t carry = is_negative ? (uint8_t)(~bytes[i]) : bytes[i];
+        for (size_t j = 0; j < digits_len; j++)
+        {
+            uint32_t temp = (uint32_t)digits[j] * 256u + carry;
+            digits[j] = (uint8_t)(temp % 10u);
+            carry = temp / 10u;
+        }
+
+        while (carry > 0)
+        {
+            if (digits_len == digits_cap)
+            {
+                digits_cap *= 2;
+                digits = erealloc(digits, digits_cap);
+            }
+            digits[digits_len++] = (uint8_t)(carry % 10u);
+            carry /= 10u;
+        }
+    }
+
+    size_t out_len = digits_len + (is_negative ? 1 : 0);
+    zend_string *out = zend_string_alloc(out_len, 0);
+    char *dst = ZSTR_VAL(out);
+    size_t pos = 0;
+
+    if (is_negative)
+    {
+        dst[pos++] = '-';
+    }
+
+    for (size_t i = 0; i < digits_len; i++)
+    {
+        dst[pos++] = (char)('0' + digits[digits_len - 1 - i]);
+    }
+
+    dst[pos] = '\0';
+    efree(digits);
+    return out;
+}
+
+static zend_string *duckdb_string_t_to_bignum_string(const duckdb_string_t *string)
+{
+    uint32_t len = string->value.inlined.length;
+    const unsigned char *ptr = NULL;
+
+    if (len > 12)
+    {
+        ptr = (const unsigned char *)string->value.pointer.ptr;
+    }
+    else
+    {
+        ptr = (const unsigned char *)string->value.inlined.inlined;
+    }
+
+    bool is_negative = (len > 1 && ptr[1] != 0);
+    if (len <= 3)
+    {
+        return duckdb_bignum_to_decimal_string(NULL, 0, is_negative);
+    }
+
+    return duckdb_bignum_to_decimal_string(ptr + 3, (size_t)len - 3, is_negative);
 }
 
 static inline void duckdb_value_to_zval_string(duckdb_value value, zval *data)
@@ -621,23 +700,13 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *
         duckdb_value_to_zval_string(value, data);
         break;
     }
-#if defined(DUCKDB_TYPE_VARINT)
-    case DUCKDB_TYPE_VARINT:
-    {
-        duckdb_varint value = ((duckdb_varint *)vector_t->data)[rowIndex];
-        duckdb_value value_value = duckdb_create_varint(value);
-        duckdb_value_to_zval_string(value_value, data);
-        break;
-    }
-#elif defined(DUCKDB_TYPE_BIGNUM)
     case DUCKDB_TYPE_BIGNUM:
     {
-        duckdb_bignum value = ((duckdb_bignum *)vector_t->data)[rowIndex];
-        duckdb_value value_value = duckdb_create_bignum(value);
-        duckdb_value_to_zval_string(value_value, data);
+        duckdb_string_t *string = &((duckdb_string_t *)vector_t->data)[rowIndex];
+        zend_string *value_string = duckdb_string_t_to_bignum_string(string);
+        ZVAL_STR(data, value_string);
         break;
     }
-#endif
     case DUCKDB_TYPE_UUID:
     {
         duckdb_hugeint uuid_hugeint = ((duckdb_hugeint *)vector_t->data)[rowIndex];
@@ -694,6 +763,12 @@ static void get_data(duckdb_vector_t *vector_t, zend_long row_index, zval *data)
     if (vector_t->data == NULL)
     {
         vector_t->data = duckdb_vector_get_data(vector_t->vector);
+    }
+
+    if (vector_t->validity == NULL)
+    {
+        duckdb_value_to_zval(vector_t, row_index, data);
+        return;
     }
 
     if (duckdb_validity_row_is_valid(vector_t->validity, row_index))
@@ -1089,6 +1164,73 @@ PHP_METHOD(DuckDB_Result, fetchChunk)
     data_chunk_t->initialised = true;
 }
 
+static zend_string *duckdb_value_to_print_string(zval *value)
+{
+    if (Z_TYPE_P(value) == IS_ARRAY)
+    {
+        smart_str buf = {0};
+        php_json_encode(&buf, value, 0);
+        smart_str_0(&buf);
+
+        if (buf.s == NULL)
+        {
+            smart_str_free(&buf);
+            return zend_string_init("null", sizeof("null") - 1, 0);
+        }
+
+        zend_string *result = buf.s;
+        buf.s = NULL;
+        smart_str_free(&buf);
+        return result;
+    }
+
+    return zval_get_string(value);
+}
+
+static zend_string *duckdb_blob_to_print_string(zend_string *value)
+{
+    const unsigned char *data = (const unsigned char *)ZSTR_VAL(value);
+    size_t len = ZSTR_LEN(value);
+    size_t extra = 0;
+
+    for (size_t i = 0; i < len; i++)
+    {
+        unsigned char ch = data[i];
+        if (ch < 0x20 || ch > 0x7e || ch == '\\')
+        {
+            extra += 3;
+        }
+    }
+
+    if (extra == 0)
+    {
+        return zend_string_copy(value);
+    }
+
+    zend_string *out = zend_string_alloc(len + extra, 0);
+    char *dst = ZSTR_VAL(out);
+    static const char hex[] = "0123456789abcdef";
+
+    for (size_t i = 0; i < len; i++)
+    {
+        unsigned char ch = data[i];
+        if (ch < 0x20 || ch > 0x7e || ch == '\\')
+        {
+            *dst++ = '\\';
+            *dst++ = 'x';
+            *dst++ = hex[(ch >> 4) & 0x0f];
+            *dst++ = hex[ch & 0x0f];
+        }
+        else
+        {
+            *dst++ = (char)ch;
+        }
+    }
+
+    *dst = '\0';
+    return out;
+}
+
 PHP_METHOD(DuckDB_Result, print)
 {
     zval *object = ZEND_THIS;
@@ -1158,9 +1300,13 @@ PHP_METHOD(DuckDB_Result, print)
                 {
                     value_string = zend_string_init("NULL", sizeof("NULL") - 1, 0);
                 }
+                else if (vectors[c].type == DUCKDB_TYPE_BLOB && Z_TYPE(value) == IS_STRING)
+                {
+                    value_string = duckdb_blob_to_print_string(Z_STR(value));
+                }
                 else
                 {
-                    value_string = zval_get_string(&value);
+                    value_string = duckdb_value_to_print_string(&value);
                 }
 
                 cells[cell_count++] = value_string;
