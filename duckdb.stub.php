@@ -18,6 +18,7 @@ namespace DuckDB {
     class Result {
         public function columnCount(): int {}
         public function fetchChunk(): ?DataChunk {}
+        public function print(): void {}
     }
 
     /** @not-serializable */

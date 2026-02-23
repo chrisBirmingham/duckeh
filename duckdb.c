@@ -1089,6 +1089,173 @@ PHP_METHOD(DuckDB_Result, fetchChunk)
     data_chunk_t->initialised = true;
 }
 
+PHP_METHOD(DuckDB_Result, print)
+{
+    zval *object = ZEND_THIS;
+    duckdb_result_t *result_t;
+    idx_t column_count;
+    size_t *column_widths = NULL;
+    zend_string **cells = NULL;
+    size_t cell_count = 0;
+    size_t cell_capacity = 0;
+    size_t row_count = 0;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    result_t = Z_DUCKDB_RESULT_P(object);
+    if (!result_t->initialised || result_t->result == NULL)
+    {
+        return;
+    }
+
+    column_count = duckdb_column_count(result_t->result);
+    if (column_count == 0)
+    {
+        return;
+    }
+
+    column_widths = emalloc(sizeof(size_t) * column_count);
+    for (idx_t c = 0; c < column_count; c++)
+    {
+        const char *name = duckdb_column_name(result_t->result, c);
+        column_widths[c] = name ? strlen(name) : 0;
+    }
+
+    for (;;)
+    {
+        duckdb_data_chunk chunk = duckdb_fetch_chunk(*result_t->result);
+        if (!chunk)
+        {
+            break;
+        }
+
+        idx_t chunk_size = duckdb_data_chunk_get_size(chunk);
+        duckdb_vector_t *vectors = emalloc(sizeof(duckdb_vector_t) * column_count);
+        for (idx_t c = 0; c < column_count; c++)
+        {
+            duckdb_init_temp_vector(&vectors[c], duckdb_data_chunk_get_vector(chunk, c));
+        }
+
+        for (idx_t r = 0; r < chunk_size; r++)
+        {
+            if (cell_count + column_count > cell_capacity)
+            {
+                cell_capacity = cell_capacity ? cell_capacity * 2 : 128;
+                while (cell_capacity < cell_count + column_count)
+                {
+                    cell_capacity *= 2;
+                }
+                cells = erealloc(cells, sizeof(zend_string *) * cell_capacity);
+            }
+
+            for (idx_t c = 0; c < column_count; c++)
+            {
+                zval value;
+                zend_string *value_string;
+
+                get_data(&vectors[c], (zend_long)r, &value);
+                if (Z_TYPE(value) == IS_NULL)
+                {
+                    value_string = zend_string_init("NULL", sizeof("NULL") - 1, 0);
+                }
+                else
+                {
+                    value_string = zval_get_string(&value);
+                }
+
+                cells[cell_count++] = value_string;
+                if (ZSTR_LEN(value_string) > column_widths[c])
+                {
+                    column_widths[c] = ZSTR_LEN(value_string);
+                }
+
+                zval_ptr_dtor(&value);
+            }
+            row_count++;
+        }
+
+        for (idx_t c = 0; c < column_count; c++)
+        {
+            duckdb_destroy_temp_vector(&vectors[c]);
+        }
+        efree(vectors);
+        duckdb_destroy_data_chunk(&chunk);
+    }
+
+    size_t line_len = 1;
+    for (idx_t c = 0; c < column_count; c++)
+    {
+        line_len += column_widths[c] + 3;
+    }
+
+    for (size_t i = 0; i < line_len; i++)
+    {
+        php_write("-", 1);
+    }
+    php_write("\n", 1);
+
+    for (idx_t c = 0; c < column_count; c++)
+    {
+        const char *name = duckdb_column_name(result_t->result, c);
+        size_t name_len = name ? strlen(name) : 0;
+
+        php_write("| ", 2);
+        if (name_len > 0)
+        {
+            php_write((char *)name, name_len);
+        }
+        for (size_t pad = name_len; pad < column_widths[c]; pad++)
+        {
+            php_write(" ", 1);
+        }
+        php_write(" ", 1);
+    }
+    php_write("|\n", 2);
+
+    for (size_t i = 0; i < line_len; i++)
+    {
+        php_write("-", 1);
+    }
+    php_write("\n", 1);
+
+    for (size_t r = 0; r < row_count; r++)
+    {
+        for (idx_t c = 0; c < column_count; c++)
+        {
+            zend_string *value_string = cells[r * column_count + c];
+            size_t value_len = ZSTR_LEN(value_string);
+
+            php_write("| ", 2);
+            if (value_len > 0)
+            {
+                php_write(ZSTR_VAL(value_string), value_len);
+            }
+            for (size_t pad = value_len; pad < column_widths[c]; pad++)
+            {
+                php_write(" ", 1);
+            }
+            php_write(" ", 1);
+        }
+        php_write("|\n", 2);
+
+        for (size_t i = 0; i < line_len; i++)
+        {
+            php_write("-", 1);
+        }
+        php_write("\n", 1);
+    }
+
+    for (size_t i = 0; i < cell_count; i++)
+    {
+        zend_string_release(cells[i]);
+    }
+    if (cells != NULL)
+    {
+        efree(cells);
+    }
+    efree(column_widths);
+}
+
 PHP_METHOD(DuckDB_DataChunk, getSize)
 {
     zval *object = ZEND_THIS;
