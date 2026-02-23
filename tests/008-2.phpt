@@ -32,7 +32,7 @@ object(DuckDB\Vector)#4 (0) {
 }
 object(DuckDB\Vector)#5 (0) {
 }
-object(DuckDB\Vector)#6 (0) {
+object(DuckDB\Vector)#4 (0) {
 }
 object(DuckDB\Vector)#5 (0) {
 }

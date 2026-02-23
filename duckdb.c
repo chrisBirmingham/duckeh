@@ -1017,19 +1017,21 @@ PHP_METHOD(DuckDB_Result, fetchChunk)
     zval *object = ZEND_THIS;
     duckdb_result_t *result_t;
     duckdb_data_chunk_t *data_chunk_t;
+    duckdb_data_chunk *chunk;
 
     ZEND_PARSE_PARAMETERS_NONE();
 
     result_t = Z_DUCKDB_RESULT_P(object);
 
-    object_init_ex(return_value, duckdb_data_chunk_class_entry);
-    data_chunk_t = Z_DUCKDB_DATA_CHUNK_P(return_value);
-    data_chunk_t->chunk = duckdb_fetch_chunk(*result_t->result);
-    if (!data_chunk_t->chunk)
+    chunk = duckdb_fetch_chunk(*result_t->result);
+    if (!chunk)
     {
-        efree(data_chunk_t);
         RETURN_NULL();
     }
+
+    object_init_ex(return_value, duckdb_data_chunk_class_entry);
+    data_chunk_t = Z_DUCKDB_DATA_CHUNK_P(return_value);
+    data_chunk_t->chunk = chunk;
     data_chunk_t->initialised = true;
 }
 
