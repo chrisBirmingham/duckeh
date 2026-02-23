@@ -942,6 +942,60 @@ PHP_METHOD(DuckDB_DuckDB, query)
     result_t->initialised = true;
 }
 
+PHP_METHOD(DuckDB_DuckDB, sql)
+{
+    duckdb_result_t *result_t;
+    char *query = NULL;
+    size_t query_len = 0;
+    duckdb_database database;
+    duckdb_connection connection;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STRING(query, query_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (duckdb_open(NULL, &database) == DuckDBError)
+    {
+        RETURN_THROWS();
+    }
+
+    if (duckdb_connect(database, &connection) == DuckDBError)
+    {
+        duckdb_close(&database);
+        RETURN_THROWS();
+    }
+
+    if (!USED_RET())
+    {
+        if (duckdb_query(connection, query, NULL) == DuckDBError)
+        {
+            duckdb_disconnect(&connection);
+            duckdb_close(&database);
+            RETURN_THROWS();
+        }
+
+        duckdb_disconnect(&connection);
+        duckdb_close(&database);
+        RETURN_TRUE;
+    }
+
+    object_init_ex(return_value, duckdb_result_class_entry);
+    result_t = Z_DUCKDB_RESULT_P(return_value);
+    result_t->result = emalloc(sizeof(duckdb_result));
+
+    if (duckdb_query(connection, query, result_t->result) == DuckDBError)
+    {
+        duckdb_disconnect(&connection);
+        duckdb_close(&database);
+        RETURN_THROWS();
+    }
+
+    result_t->initialised = true;
+
+    duckdb_disconnect(&connection);
+    duckdb_close(&database);
+}
+
 PHP_METHOD(DuckDB_DuckDB, prepare)
 {
     zval *object = ZEND_THIS;
@@ -1017,7 +1071,7 @@ PHP_METHOD(DuckDB_Result, fetchChunk)
     zval *object = ZEND_THIS;
     duckdb_result_t *result_t;
     duckdb_data_chunk_t *data_chunk_t;
-    duckdb_data_chunk *chunk;
+    duckdb_data_chunk chunk;
 
     ZEND_PARSE_PARAMETERS_NONE();
 

@@ -11,6 +11,7 @@ namespace DuckDB {
 
         public function query(string $query): Result|bool {}
         public function prepare(string $query): PreparedStatement {}
+        public static function sql(string $query): Result|bool {}
     }
 
     /** @not-serializable */

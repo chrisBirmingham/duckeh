@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 58b04ffa7fa6c4c97ce914d5c24f61290743782d */
+ * Stub hash: acfd16f71d766a849cfd4e12978d85eb8a981174 */
 
 #ifndef zend_register_internal_class_with_flags
 static inline zend_class_entry *duckdb_register_internal_class_with_flags(zend_class_entry *class_entry,
@@ -23,6 +23,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DuckDB_DuckDB___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_DuckDB_DuckDB_query, 0, 1, DuckDB\\Result, MAY_BE_BOOL)
+	ZEND_ARG_TYPE_INFO(0, query, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_DuckDB_DuckDB_sql, 0, 1, DuckDB\\Result, MAY_BE_BOOL)
 	ZEND_ARG_TYPE_INFO(0, query, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
@@ -93,6 +97,7 @@ ZEND_END_ARG_INFO()
 ZEND_FUNCTION(duckdb_info);
 ZEND_METHOD(DuckDB_DuckDB, __construct);
 ZEND_METHOD(DuckDB_DuckDB, query);
+ZEND_METHOD(DuckDB_DuckDB, sql);
 ZEND_METHOD(DuckDB_DuckDB, prepare);
 ZEND_METHOD(DuckDB_Result, columnCount);
 ZEND_METHOD(DuckDB_Result, fetchChunk);
@@ -126,6 +131,7 @@ static const zend_function_entry ext_functions[] = {
 static const zend_function_entry class_DuckDB_DuckDB_methods[] = {
 	ZEND_ME(DuckDB_DuckDB, __construct, arginfo_class_DuckDB_DuckDB___construct, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_DuckDB, query, arginfo_class_DuckDB_DuckDB_query, ZEND_ACC_PUBLIC)
+	ZEND_ME(DuckDB_DuckDB, sql, arginfo_class_DuckDB_DuckDB_sql, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_ME(DuckDB_DuckDB, prepare, arginfo_class_DuckDB_DuckDB_prepare, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
