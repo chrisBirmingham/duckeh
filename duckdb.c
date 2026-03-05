@@ -1127,7 +1127,7 @@ PHP_METHOD(DuckDB_PreparedStatement, execute)
     prepared_statement_t = Z_PREPARED_STATEMENT_P(object);
     res = emalloc(sizeof(duckdb_result));
 
-    if (duckdb_execute_prepared(*prepared_statement_t->stmt, result_t->result) == DuckDBError)
+    if (duckdb_execute_prepared(*prepared_statement_t->stmt, res) == DuckDBError)
     {
         zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(res), 0);
         duckdb_destroy_result(res);

@@ -21,6 +21,8 @@ namespace DuckDB {
 
         /** @throws QueryException */
         public function query(string $query): Result {}
+
+        /** @throws QueryException */
         public function prepare(string $query): PreparedStatement {}
 
         /** @throws ConnectionException|QueryException */
@@ -49,6 +51,8 @@ namespace DuckDB {
     class PreparedStatement {
         // Only string allowed for now. TODO: add other types
         public function bindParam(int $index, string $param): bool {}
+
+        /** @throws QueryException */
         public function execute(): Result {}
     }
 }
