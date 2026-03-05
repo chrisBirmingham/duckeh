@@ -5,13 +5,23 @@
  */
 
 namespace DuckDB {
+    /** @strict-properties */
+    class ConnectionException extends \Exception {}
+
+    /** @strict-properties */
+    class QueryException extends \Exception {}
+
     /** @not-serializable */
     class DuckDB {
+        /** @throws ConnectionException */
         public function __construct(?string $path = null) {}
 
-        public function query(string $query): Result|bool {}
+        /** @throws QueryException */
+        public function query(string $query): Result {}
         public function prepare(string $query): PreparedStatement {}
-        public static function sql(string $query): Result|bool {}
+
+        /** @throws ConnectionException|QueryException */
+        public static function sql(string $query): Result {}
     }
 
     /** @not-serializable */
@@ -38,11 +48,6 @@ namespace DuckDB {
         public function bindParam(int $index, string $param): bool {}
         public function execute(): Result {}
     }
-
-    /**
-     * @strict-properties
-     */
-    class Exception extends \Exception {}
 }
 
 /**

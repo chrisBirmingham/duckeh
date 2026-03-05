@@ -53,7 +53,8 @@ static zend_class_entry *duckdb_timestamp_class_entry = NULL;
 static zend_class_entry *duckdb_date_class_entry = NULL;
 static zend_class_entry *duckdb_time_class_entry = NULL;
 
-static zend_class_entry *duckdb_exception_class_entry = NULL;
+static zend_class_entry *duckdb_connection_exception_class_entry = NULL;
+static zend_class_entry *duckdb_query_exception_class_entry = NULL;
 
 /* Free object functions */
 static void duckdb_free_obj(zend_object *obj)
@@ -70,8 +71,8 @@ static void duckdb_free_obj(zend_object *obj)
         duckdb_close(duckdb->database);
     }
 
-    efree(duckdb->connection);
     efree(duckdb->database);
+    efree(duckdb->connection);
     zend_object_std_dtor(&duckdb->std);
 }
 
@@ -241,7 +242,6 @@ static zend_object *duckdb_time_new(zend_class_entry *ce)
 PHP_METHOD(DuckDB_DuckDB, __construct)
 {
     zval *object = ZEND_THIS;
-    duckdb_t *duckdb_t;
     char *path = NULL;
     size_t path_len = 0;
 
@@ -250,27 +250,32 @@ PHP_METHOD(DuckDB_DuckDB, __construct)
     Z_PARAM_STRING(path, path_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    duckdb_t = Z_DUCKDB_P(object);
-
     if (path_len == 0)
     {
         path = NULL;
     }
 
-    duckdb_t->database = emalloc(sizeof(duckdb_database));
-    if (duckdb_open(path, duckdb_t->database) == DuckDBError)
+    duckdb_database *database = emalloc(sizeof(duckdb_database));
+    if (duckdb_open(path, database) == DuckDBError)
     {
-        php_printf("Error opening\n");
+        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to initialize duckdb. Failed to open database", 0);
+        efree(database);
         RETURN_THROWS();
     }
 
-    duckdb_t->connection = emalloc(sizeof(duckdb_connection));
-    if (duckdb_connect(*duckdb_t->database, duckdb_t->connection) == DuckDBError)
+    duckdb_connection *connection = emalloc(sizeof(duckdb_connection));
+    if (duckdb_connect(*database, connection) == DuckDBError)
     {
-        php_printf("Error connecting\n");
+        duckdb_close(database);
+        efree(database);
+        efree(connection);
+        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to initialize duckdb. Failed to connect to database", 0);
         RETURN_THROWS();
     }
 
+    duckdb_t *duckdb_t = Z_DUCKDB_P(object);
+    duckdb_t->database = database;
+    duckdb_t->connection = connection;
     duckdb_t->initialised = true;
 }
 
@@ -985,8 +990,6 @@ PHP_FUNCTION(duckdb_info)
 PHP_METHOD(DuckDB_DuckDB, query)
 {
     zval *object = ZEND_THIS;
-    duckdb_t *duckdb_t;
-    duckdb_result_t *result_t;
     char *query = NULL;
     size_t query_len = 0;
 
@@ -994,26 +997,20 @@ PHP_METHOD(DuckDB_DuckDB, query)
     Z_PARAM_STRING(query, query_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    duckdb_t = Z_DUCKDB_P(object);
+    duckdb_t *duckdb_t = Z_DUCKDB_P(object);
+    duckdb_result *res = emalloc(sizeof(duckdb_result));
 
-    if (!USED_RET())
+    if (duckdb_query(*duckdb_t->connection, query, res) == DuckDBError)
     {
-        if (duckdb_query(*duckdb_t->connection, query, NULL) == DuckDBError)
-        {
-            RETURN_THROWS();
-        }
-        RETURN_TRUE;
-    }
-
-    object_init_ex(return_value, duckdb_result_class_entry);
-    result_t = Z_DUCKDB_RESULT_P(return_value);
-    result_t->result = emalloc(sizeof(duckdb_result));
-
-    if (duckdb_query(*duckdb_t->connection, query, result_t->result) == DuckDBError)
-    {
+        zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(res), 0);
+        duckdb_destroy_result(res);
+        efree(res);
         RETURN_THROWS();
     }
 
+    object_init_ex(return_value, duckdb_result_class_entry);
+    duckdb_result_t *result_t = Z_DUCKDB_RESULT_P(return_value);
+    result_t->result = res;
     result_t->initialised = true;
 }
 
@@ -1031,51 +1028,38 @@ PHP_METHOD(DuckDB_DuckDB, sql)
 
     if (duckdb_open(NULL, &database) == DuckDBError)
     {
+        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to initialize duckdb. Failed to open database", 0);
         RETURN_THROWS();
     }
 
     if (duckdb_connect(database, &connection) == DuckDBError)
     {
         duckdb_close(&database);
+        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to initialize duckdb. Failed to connect to database", 0);
         RETURN_THROWS();
     }
 
-    if (!USED_RET())
+    duckdb_result *res = emalloc(sizeof(duckdb_result));
+    if (duckdb_query(connection, query, res) == DuckDBError)
     {
-        if (duckdb_query(connection, query, NULL) == DuckDBError)
-        {
-            duckdb_disconnect(&connection);
-            duckdb_close(&database);
-            RETURN_THROWS();
-        }
-
-        duckdb_disconnect(&connection);
-        duckdb_close(&database);
-        RETURN_TRUE;
-    }
-
-    object_init_ex(return_value, duckdb_result_class_entry);
-    result_t = Z_DUCKDB_RESULT_P(return_value);
-    result_t->result = emalloc(sizeof(duckdb_result));
-
-    if (duckdb_query(connection, query, result_t->result) == DuckDBError)
-    {
-        duckdb_disconnect(&connection);
-        duckdb_close(&database);
+        zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(res), 0);
+        duckdb_destroy_result(res);
+        efree(res);
         RETURN_THROWS();
     }
-
-    result_t->initialised = true;
 
     duckdb_disconnect(&connection);
     duckdb_close(&database);
+
+    object_init_ex(return_value, duckdb_result_class_entry);
+    result_t = Z_DUCKDB_RESULT_P(return_value);
+    result_t->result = res;
+    result_t->initialised = true;
 }
 
 PHP_METHOD(DuckDB_DuckDB, prepare)
 {
     zval *object = ZEND_THIS;
-    duckdb_t *duckdb_t;
-    duckdb_prepared_statement_t *prepared_statement_t;
     char *query = NULL;
     size_t query_len = 0;
 
@@ -1083,15 +1067,19 @@ PHP_METHOD(DuckDB_DuckDB, prepare)
     Z_PARAM_STRING(query, query_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    duckdb_t = Z_DUCKDB_P(object);
+    duckdb_t *duckdb_t = Z_DUCKDB_P(object);
+    duckdb_prepared_statement *stmt = emalloc(sizeof(duckdb_prepared_statement));
 
-    object_init_ex(return_value, duckdb_prepared_statement_class_entry);
-    prepared_statement_t = Z_PREPARED_STATEMENT_P(return_value);
-    prepared_statement_t->stmt = emalloc(sizeof(duckdb_prepared_statement));
-
-    if (duckdb_prepare(*duckdb_t->connection, query, prepared_statement_t->stmt) == DuckDBError) {
+    if (duckdb_prepare(*duckdb_t->connection, query, stmt) == DuckDBError)
+    {
+        zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(*stmt), 0);
+        duckdb_destroy_prepare(stmt);
         RETURN_THROWS();
     }
+
+    object_init_ex(return_value, duckdb_prepared_statement_class_entry);
+    duckdb_prepared_statement_t *prepared_statement_t = Z_PREPARED_STATEMENT_P(return_value);
+    prepared_statement_t->stmt = stmt;
 }
 
 PHP_METHOD(DuckDB_PreparedStatement, bindParam)
@@ -1678,7 +1666,8 @@ PHP_RINIT_FUNCTION(duckdb)
 
 PHP_MINIT_FUNCTION(duckdb)
 {
-    duckdb_exception_class_entry = register_class_DuckDB_Exception(zend_ce_exception);
+    duckdb_connection_exception_class_entry = register_class_DuckDB_ConnectionException(zend_ce_exception);
+    duckdb_query_exception_class_entry = register_class_DuckDB_QueryException(zend_ce_exception);
 
     memcpy(&duckdb_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     memcpy(&prepared_statement_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
