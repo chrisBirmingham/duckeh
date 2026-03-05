@@ -6,10 +6,13 @@
 
 namespace DuckDB {
     /** @strict-properties */
-    class ConnectionException extends \Exception {}
+    class DuckDBException extends \Exception {}
 
     /** @strict-properties */
-    class QueryException extends \Exception {}
+    class ConnectionException extends DuckDBException {}
+
+    /** @strict-properties */
+    class QueryException extends DuckDBException {}
 
     /** @not-serializable */
     class DuckDB {

@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9c7db3cda74840bdea7dbd88301a39a833381374 */
+ * Stub hash: 29fc649cfa8d9e7a944a8562f904b838347a639c */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_duckdb_info, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
@@ -184,22 +184,32 @@ static void register_duckdb_symbols(int module_number)
 	ZEND_ASSERT(PHP_DUCKDB_FINITE == 0);
 }
 
-static zend_class_entry *register_class_DuckDB_ConnectionException(zend_class_entry *class_entry_Exception)
+static zend_class_entry *register_class_DuckDB_DuckDBException(zend_class_entry *class_entry_Exception)
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "ConnectionException", NULL);
+	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "DuckDBException", NULL);
 	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Exception, ZEND_ACC_NO_DYNAMIC_PROPERTIES);
 
 	return class_entry;
 }
 
-static zend_class_entry *register_class_DuckDB_QueryException(zend_class_entry *class_entry_Exception)
+static zend_class_entry *register_class_DuckDB_ConnectionException(zend_class_entry *class_entry_DuckDB_DuckDBException)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "ConnectionException", NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_DuckDB_DuckDBException, ZEND_ACC_NO_DYNAMIC_PROPERTIES);
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DuckDB_QueryException(zend_class_entry *class_entry_DuckDB_DuckDBException)
 {
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "QueryException", NULL);
-	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_Exception, ZEND_ACC_NO_DYNAMIC_PROPERTIES);
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_DuckDB_DuckDBException, ZEND_ACC_NO_DYNAMIC_PROPERTIES);
 
 	return class_entry;
 }
