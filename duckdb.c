@@ -1141,6 +1141,17 @@ PHP_METHOD(DuckDB_PreparedStatement, execute)
     result_t->initialised = true;
 }
 
+PHP_METHOD(DuckDB_Result, rowCount)
+{
+    zval *object = ZEND_THIS;
+    duckdb_result_t *result_t;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    result_t = Z_DUCKDB_RESULT_P(object);
+    RETURN_LONG(duckdb_row_count(result_t->result));
+}
+
 PHP_METHOD(DuckDB_Result, columnCount)
 {
     zval *object = ZEND_THIS;

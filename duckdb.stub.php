@@ -6,54 +6,82 @@
  */
 
 namespace DuckDB {
-    /** @strict-properties */
+    /**
+     * @strict-properties
+     */
     class DuckDBException extends \Exception {}
 
-    /** @strict-properties */
+    /**
+     * @strict-properties
+     */
     class ConnectionException extends DuckDBException {}
 
-    /** @strict-properties */
+    /**
+     * @strict-properties
+     */
     class QueryException extends DuckDBException {}
 
-    /** @not-serializable */
+    /**
+     * @not-serializable
+     */
     class DuckDB {
-        /** @throws ConnectionException */
+        /**
+         * @throws ConnectionException
+         */
         public function __construct(?string $path = null) {}
 
-        /** @throws QueryException */
+        /**
+         * @throws QueryException
+         */
         public function query(string $query): Result {}
 
-        /** @throws QueryException */
+        /**
+         * @throws QueryException
+         */
         public function prepare(string $query): PreparedStatement {}
 
-        /** @throws ConnectionException|QueryException */
+        /**
+         * @throws ConnectionException
+         * @throws QueryException
+         */
         public static function sql(string $query): Result {}
     }
 
-    /** @not-serializable */
+    /**
+     * @not-serializable
+     */
     class Result {
         public function columnCount(): int {}
+        public function rowCount(): int {}
         public function fetchChunk(): ?DataChunk {}
         public function print(): void {}
     }
 
-    /** @not-serializable */
+    /**
+     * @not-serializable
+     */
     class DataChunk {
         public function getSize(): int {}
         public function getVector(int $columnIndex): Vector {}
     }
 
-    /** @not-serializable */
+    /**
+     * @not-serializable
+     */
     class Vector {
         public function getData(int $rowIndex): mixed {}
     }
 
-    /** @not-serializable */
+    /**
+     * @not-serializable
+     */
     class PreparedStatement {
         // Only string allowed for now. TODO: add other types
         public function bindParam(int $index, string $param): bool {}
 
-        /** @throws QueryException */
+        /**
+         * @throws QueryException
+         */
         public function execute(): Result {}
     }
 }
@@ -81,7 +109,9 @@ namespace DuckDB\Value {
      */
     const FINITE = 0;
 
-    /** @not-serializable */
+    /**
+     * @not-serializable
+     */
     class Timestamp {
         public function infinity(): int {}
         public function getDate(): Date {}
@@ -89,7 +119,9 @@ namespace DuckDB\Value {
         public function __toString(): string {}
     }
 
-    /** @not-serializable */
+    /**
+     * @not-serializable
+     */
     class Date {
         public function infinity(): int {}
         public function getYear(): int {}
@@ -99,7 +131,9 @@ namespace DuckDB\Value {
         public function __toString(): string {}
     }
 
-    /** @not-serializable */
+    /**
+     * @not-serializable
+     */
     class Time {
         public function getTotalMicroseconds(): int {}
         public function getHour(): int {}
