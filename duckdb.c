@@ -1255,7 +1255,7 @@ PHP_METHOD(DuckDB_Result, fetchAll)
         {
             zval arr;
             array_init_size(&arr, column_count);
-            fetch_row(&arr, result_t->result, chunk, column_count, result_t->current_row);
+            fetch_row(&arr, result_t->result, chunk, column_count, r);
             add_next_index_zval(return_value, &arr);
         }
 
