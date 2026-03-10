@@ -41,7 +41,6 @@ typedef struct duckdb_data_chunk_t
 {
     bool initialised;
     duckdb_data_chunk chunk;
-    idx_t column_count;
     zend_object std;
 } duckdb_data_chunk_t;
 

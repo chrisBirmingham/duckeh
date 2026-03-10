@@ -52,10 +52,16 @@ namespace DuckDB {
      */
     class Result {
         public function columnCount(): int {}
+
         public function rowCount(): int {}
+
         public function fetchChunk(): ?DataChunk {}
+
         public function print(): void {}
+
         public function fetch(): array|false {}
+
+        public function fetchAll(): array {}
     }
 
     /**
@@ -63,6 +69,7 @@ namespace DuckDB {
      */
     class DataChunk {
         public function getSize(): int {}
+
         public function getVector(int $columnIndex): Vector {}
     }
 
@@ -115,8 +122,11 @@ namespace DuckDB\Value {
      */
     class Timestamp {
         public function infinity(): int {}
+
         public function getDate(): Date {}
+
         public function getTime(): Time {}
+
         public function __toString(): string {}
     }
 
@@ -125,10 +135,15 @@ namespace DuckDB\Value {
      */
     class Date {
         public function infinity(): int {}
+
         public function getYear(): int {}
+
         public function getMonth(): int {}
+
         public function getDay(): int {}
+
         public function getDays(): int {}
+
         public function __toString(): string {}
     }
 
@@ -137,10 +152,15 @@ namespace DuckDB\Value {
      */
     class Time {
         public function getTotalMicroseconds(): int {}
+
         public function getHour(): int {}
+
         public function getMinutes(): int {}
+
         public function getSeconds(): int {}
+
         public function getMicroseconds(): int {}
+
         public function __toString(): string {}
     }
 }

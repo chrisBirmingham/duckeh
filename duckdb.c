@@ -1188,6 +1188,20 @@ PHP_METHOD(DuckDB_Result, fetchChunk)
     data_chunk_t->initialised = true;
 }
 
+static void fetch_row(zval *arr, duckdb_result *res, duckdb_data_chunk chunk, idx_t column_count, idx_t row)
+{
+    for (idx_t c = 0; c < column_count; c++)
+    {
+        const char *name = duckdb_column_name(res, c);
+        duckdb_vector_t vector;
+        duckdb_init_temp_vector(&vector, duckdb_data_chunk_get_vector(chunk, c));
+
+        zval value;
+        get_data(&vector, (zend_long)row, &value);
+        add_assoc_zval(arr, name, &value);
+    }
+}
+
 PHP_METHOD(DuckDB_Result, fetch)
 {
     zval *object = ZEND_THIS;
@@ -1213,22 +1227,45 @@ PHP_METHOD(DuckDB_Result, fetch)
     chunk = result_t->current_chunk;
     idx_t column_count = duckdb_column_count(result_t->result);
     array_init_size(return_value, column_count);
-
-    for (idx_t c = 0; c < column_count; c++)
-    {
-        const char *name = duckdb_column_name(result_t->result, c);
-        duckdb_vector_t vector;
-        duckdb_init_temp_vector(&vector, duckdb_data_chunk_get_vector(chunk, c));
-
-        zval value;
-        get_data(&vector, (zend_long)result_t->current_row, &value);
-        add_assoc_zval(return_value, name, &value);
-    }
+    fetch_row(return_value, result_t->result, chunk, column_count, result_t->current_row);
 
     if (++result_t->current_row == duckdb_data_chunk_get_size(chunk))
     {
         duckdb_destroy_data_chunk(&chunk);
         result_t->current_chunk = NULL;
+    }
+}
+
+PHP_METHOD(DuckDB_Result, fetchAll)
+{
+    zval *object = ZEND_THIS;
+    duckdb_result_t *result_t;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    result_t = Z_DUCKDB_RESULT_P(object);
+    idx_t column_count = duckdb_column_count(result_t->result);
+    array_init(return_value);
+
+    for (;;)
+    {
+        duckdb_data_chunk chunk = duckdb_fetch_chunk(*result_t->result);
+
+        if (!chunk)
+        {
+            break;
+        }
+
+        idx_t chunk_size = duckdb_data_chunk_get_size(chunk);
+        for (idx_t r = 0; r < chunk_size; r++)
+        {
+            zval arr;
+            array_init_size(&arr, column_count);
+            fetch_row(&arr, result_t->result, chunk, column_count, result_t->current_row);
+            add_next_index_zval(return_value, &arr);
+        }
+
+        duckdb_destroy_data_chunk(&chunk);
     }
 }
 
