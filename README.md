@@ -146,3 +146,113 @@ As a fallback, you can also pass include and library paths via environment varia
 ```sh
 CPPFLAGS="-I/path/to/duckdb/include" LDFLAGS="-L/path/to/duckdb/lib" pie install saturio/duckdb
 ```
+
+## Usage
+
+### Creation
+
+A new in-memory database can be created like so:
+
+```php
+$db = new \DuckDB\DuckDB();
+```
+
+You can attach to a store by specifying a path to the DuckDB class.
+
+```php
+$db = new \DuckDB\DuckDB(__DIR__ '/Star_Trek-Season_1.csv');
+```
+
+A `ConnectionException` is thrown if the class fails to initialise.
+
+### Running Queries
+
+#### Simple
+
+You can run queries via the `query` method:
+
+```php
+$db = new \DuckDB\DuckDB();
+$res = $db->query('SELECT * FROM duck');
+```
+
+The query method returns a `Result` class or throws a `QueryException` if the query fails.
+
+#### Prepared Statements
+
+Prepared statements are created via the `prepare` method:
+
+```php
+$db = new \DuckDB\DuckDB();
+$stmt = $db->prepare('SELECT * FROM duck where quack = $1');
+
+# Bind a variable to the parameter
+$stmt->bindParam(1, "honk");
+
+# Execute the prepared statement
+$res = $stmt->execute();
+```
+
+The `execute` method returns a `Result` class or throws a `QueryException` if the query fails
+
+### Results
+
+The result class supports two forms for getting the queried data, the higher level fetch method and lower level chunk method
+
+#### Fetch methods
+
+These methods closely map to the pdo statement methods of the same name. The `fetch` method will keep on returning data until 
+it reaches the end of the returned data where it will return null. The `fetchAll` method will collect all the data and
+return it as one big array. 
+
+Both methods return each row as an associative array with the column name as the key and the values are mapped directly 
+to PHP types.
+
+```php
+$db = new \DuckDB\DuckDB(__DIR__ . '/Star_Trek-Season_1.csv');
+$res = $db->query('SELECT episode_num FROM "Star_Trek-Season_1" limit 10');
+
+while ($row = $res->fetch()) {
+    echo $row['episode_num'] . "\n" ;
+}
+
+$db = new \DuckDB\DuckDB(__DIR__ . '/Star_Trek-Season_1.csv');
+$res = $db->query('SELECT episode_num FROM "Star_Trek-Season_1" limit 10')->fetchAll();
+
+foreach ($res as $row) {
+    echo $row['episode_num'] . "\n" ;
+}
+```
+
+### Chunk method
+
+This extension also supports duckdb's lower level chunk and vector datatypes. You can select a chunk via the `fetchChunk`
+method. This method will keep on returning chunks until all data is exhausted. You then process each chunk like so: 
+
+```php
+$duckDB = new \DuckDB\DuckDB();
+
+$result = $duckDB->query("SELECT 'quack' as mycolumn1, 'quick' as mycolumn2;");
+
+# Get how many columns the response has
+$columns = $result->columnCount();
+
+# Keep on getting data until we've exhausted the input
+while ($dataChunk = $result->fetchChunk()) {
+    # Get how many rows are inside the chunk
+    $rows = $dataChunk->getSize();
+    
+    # Loop over all the rows in the chunk
+    for ($j = 0; $j < $rows; $j++) {
+        
+        for ($i = 0; $i < $columns; $i++) {
+            # Get the vector for the column
+            $vector = $dataChunk->getVector($i);
+            
+            # Get the value of the column for row $j
+            $data = $vector->getData($j);
+            var_dump($data);
+        }
+    }
+}
+```
