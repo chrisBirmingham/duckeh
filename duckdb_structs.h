@@ -31,6 +31,8 @@ typedef struct duckdb_prepared_statement_t
 typedef struct duckdb_result_t
 {
     bool initialised;
+    duckdb_data_chunk current_chunk;
+    idx_t current_row;
     duckdb_result *result;
     zend_object std;
 } duckdb_result_t;
@@ -39,6 +41,7 @@ typedef struct duckdb_data_chunk_t
 {
     bool initialised;
     duckdb_data_chunk chunk;
+    idx_t column_count;
     zend_object std;
 } duckdb_data_chunk_t;
 

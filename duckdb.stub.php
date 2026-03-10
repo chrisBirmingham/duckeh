@@ -55,6 +55,7 @@ namespace DuckDB {
         public function rowCount(): int {}
         public function fetchChunk(): ?DataChunk {}
         public function print(): void {}
+        public function fetch(): array|false {}
     }
 
     /**

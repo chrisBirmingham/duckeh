@@ -175,6 +175,7 @@ static zend_object *duckdb_result_new(zend_class_entry *ce)
     zend_object_std_init(&result->std, ce);
     object_properties_init(&result->std, ce);
     result->std.handlers = &result_object_handlers;
+    result->current_chunk = NULL;
 
     return &result->std;
 }
@@ -1183,7 +1184,52 @@ PHP_METHOD(DuckDB_Result, fetchChunk)
     object_init_ex(return_value, duckdb_data_chunk_class_entry);
     data_chunk_t = Z_DUCKDB_DATA_CHUNK_P(return_value);
     data_chunk_t->chunk = chunk;
+    data_chunk_t->column_count = duckdb_column_count(result_t->result);
     data_chunk_t->initialised = true;
+}
+
+PHP_METHOD(DuckDB_Result, fetch)
+{
+    zval *object = ZEND_THIS;
+    duckdb_result_t *result_t;
+    duckdb_data_chunk chunk;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    result_t = Z_DUCKDB_RESULT_P(object);
+
+    if (result_t->current_chunk == NULL)
+    {
+        result_t->current_chunk = duckdb_fetch_chunk(*result_t->result);
+
+        if (result_t->current_chunk == NULL)
+        {
+            RETURN_BOOL(false);
+        }
+
+        result_t->current_row = 0;
+    }
+
+    chunk = result_t->current_chunk;
+    idx_t column_count = duckdb_column_count(result_t->result);
+    array_init_size(return_value, column_count);
+
+    for (idx_t c = 0; c < column_count; c++)
+    {
+        const char *name = duckdb_column_name(result_t->result, c);
+        duckdb_vector_t vector;
+        duckdb_init_temp_vector(&vector, duckdb_data_chunk_get_vector(chunk, c));
+
+        zval value;
+        get_data(&vector, (zend_long)result_t->current_row, &value);
+        add_assoc_zval(return_value, name, &value);
+    }
+
+    if (++result_t->current_row == duckdb_data_chunk_get_size(chunk))
+    {
+        duckdb_destroy_data_chunk(&chunk);
+        result_t->current_chunk = NULL;
+    }
 }
 
 static zend_string *duckdb_value_to_print_string(zval *value)
