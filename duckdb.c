@@ -94,10 +94,14 @@ static void duckdb_result_free_obj(zend_object *obj)
 {
     duckdb_result_t *result_t = duckdb_result_t_from_obj(obj);
 
-    if (result_t->initialised && result_t->result != NULL)
+    if (result_t->result != NULL)
     {
         duckdb_destroy_result(result_t->result);
-        result_t->initialised = false;
+    }
+
+    if (result_t->current_chunk != NULL)
+    {
+        duckdb_destroy_data_chunk(&result_t->current_chunk);
     }
 
     efree(result_t->result);
@@ -108,10 +112,9 @@ static void duckdb_data_chunk_free_obj(zend_object *obj)
 {
     duckdb_data_chunk_t *data_chunk = duckdb_data_chunk_t_from_obj(obj);
 
-    if (data_chunk->initialised && data_chunk->chunk != NULL)
+    if (data_chunk->chunk != NULL)
     {
         duckdb_destroy_data_chunk(&data_chunk->chunk);
-        data_chunk->initialised = false;
     }
 
     zend_object_std_dtor(&data_chunk->std);
@@ -281,7 +284,6 @@ PHP_METHOD(DuckDB_DuckDB, __construct)
     duckdb_t = Z_DUCKDB_P(object);
     duckdb_t->database = database;
     duckdb_t->connection = connection;
-    duckdb_t->initialised = true;
 }
 
 PHP_METHOD(DuckDB_DataChunk, __construct)
@@ -297,7 +299,6 @@ static HashTable *duckdb_get_debug_info(zend_object *object, int *is_temp)
 
     zval tmp;
     array_init(&tmp);
-    add_assoc_bool(&tmp, "initialised", duckdb_t->initialised);
     add_assoc_bool(&tmp, "database_initialised", duckdb_t->database);
     add_assoc_bool(&tmp, "connection_initialised", duckdb_t->connection);
 
@@ -314,8 +315,6 @@ static HashTable *duckdb_result_get_debug_info(zend_object *object, int *is_temp
 
     zval tmp;
     array_init(&tmp);
-    add_assoc_bool(&tmp, "initialised", result_t->initialised);
-
     zend_hash_str_add(ret, "{duckdb_result}", sizeof("{duckdb_result}") - 1, &tmp);
     *is_temp = 1;
     return ret;
@@ -1019,7 +1018,6 @@ PHP_METHOD(DuckDB_DuckDB, query)
     object_init_ex(return_value, duckdb_result_class_entry);
     result_t = Z_DUCKDB_RESULT_P(return_value);
     result_t->result = res;
-    result_t->initialised = true;
 }
 
 PHP_METHOD(DuckDB_DuckDB, sql)
@@ -1067,7 +1065,6 @@ PHP_METHOD(DuckDB_DuckDB, sql)
     object_init_ex(return_value, duckdb_result_class_entry);
     result_t = Z_DUCKDB_RESULT_P(return_value);
     result_t->result = res;
-    result_t->initialised = true;
 }
 
 PHP_METHOD(DuckDB_DuckDB, prepare)
@@ -1139,7 +1136,6 @@ PHP_METHOD(DuckDB_PreparedStatement, execute)
     object_init_ex(return_value, duckdb_result_class_entry);
     result_t = Z_DUCKDB_RESULT_P(return_value);
     result_t->result = res;
-    result_t->initialised = true;
 }
 
 PHP_METHOD(DuckDB_Result, rowCount)
@@ -1184,8 +1180,6 @@ PHP_METHOD(DuckDB_Result, fetchChunk)
     object_init_ex(return_value, duckdb_data_chunk_class_entry);
     data_chunk_t = Z_DUCKDB_DATA_CHUNK_P(return_value);
     data_chunk_t->chunk = chunk;
-    data_chunk_t->column_count = duckdb_column_count(result_t->result);
-    data_chunk_t->initialised = true;
 }
 
 static void fetch_row(zval *arr, duckdb_result *res, duckdb_data_chunk chunk, idx_t column_count, idx_t row)
@@ -1350,7 +1344,7 @@ PHP_METHOD(DuckDB_Result, print)
     ZEND_PARSE_PARAMETERS_NONE();
 
     result_t = Z_DUCKDB_RESULT_P(object);
-    if (!result_t->initialised || result_t->result == NULL)
+    if (result_t->result == NULL)
     {
         return;
     }
