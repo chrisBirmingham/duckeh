@@ -18,6 +18,7 @@
 #endif
 #include "duckdb_arginfo.h"
 #include "zend_exceptions.h"
+#include "zend_interfaces.h"
 #include "duckdb_structs.h"
 
 #include <duckdb.h>
@@ -1817,17 +1818,17 @@ PHP_MINIT_FUNCTION(duckdb)
     vector_object_handlers.free_obj = duckdb_vector_free_obj;
     vector_object_handlers.offset = XtOffsetOf(duckdb_vector_t, std);
 
-    duckdb_timestamp_class_entry = register_class_DuckDB_Value_Timestamp();
+    duckdb_timestamp_class_entry = register_class_DuckDB_Value_Timestamp(zend_ce_stringable);
     duckdb_timestamp_class_entry->create_object = duckdb_timestamp_new;
     timestamp_object_handlers.free_obj = duckdb_timestamp_free_obj;
     timestamp_object_handlers.offset = XtOffsetOf(duckdb_timestamp_t, std);
 
-    duckdb_date_class_entry = register_class_DuckDB_Value_Date();
+    duckdb_date_class_entry = register_class_DuckDB_Value_Date(zend_ce_stringable);
     duckdb_date_class_entry->create_object = duckdb_date_new;
     date_object_handlers.free_obj = duckdb_date_free_obj;
     date_object_handlers.offset = XtOffsetOf(duckdb_date_t, std);
 
-    duckdb_time_class_entry = register_class_DuckDB_Value_Time();
+    duckdb_time_class_entry = register_class_DuckDB_Value_Time(zend_ce_stringable);
     duckdb_time_class_entry->create_object = duckdb_time_new;
     time_object_handlers.free_obj = duckdb_time_free_obj;
     time_object_handlers.offset = XtOffsetOf(duckdb_time_t, std);

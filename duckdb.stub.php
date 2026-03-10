@@ -120,7 +120,7 @@ namespace DuckDB\Value {
     /**
      * @not-serializable
      */
-    class Timestamp {
+    class Timestamp implements \Stringable {
         public function infinity(): int {}
 
         public function getDate(): Date {}
@@ -133,7 +133,7 @@ namespace DuckDB\Value {
     /**
      * @not-serializable
      */
-    class Date {
+    class Date implements \Stringable {
         public function infinity(): int {}
 
         public function getYear(): int {}
@@ -150,7 +150,7 @@ namespace DuckDB\Value {
     /**
      * @not-serializable
      */
-    class Time {
+    class Time implements \Stringable {
         public function getTotalMicroseconds(): int {}
 
         public function getHour(): int {}

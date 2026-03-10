@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 91204a328286e9e2fb18fb914b09cd95f0989c6e */
+ * Stub hash: a691938cd3ebeaa69eea051d24d5d4229664e189 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_duckdb_info, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
@@ -318,7 +318,7 @@ static zend_class_entry *register_class_DuckDB_PreparedStatement(void)
 	return class_entry;
 }
 
-static zend_class_entry *register_class_DuckDB_Value_Timestamp(void)
+static zend_class_entry *register_class_DuckDB_Value_Timestamp(zend_class_entry *class_entry_Stringable)
 {
 	zend_class_entry ce, *class_entry;
 
@@ -329,11 +329,12 @@ static zend_class_entry *register_class_DuckDB_Value_Timestamp(void)
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
 	class_entry->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
 #endif
+	zend_class_implements(class_entry, 1, class_entry_Stringable);
 
 	return class_entry;
 }
 
-static zend_class_entry *register_class_DuckDB_Value_Date(void)
+static zend_class_entry *register_class_DuckDB_Value_Date(zend_class_entry *class_entry_Stringable)
 {
 	zend_class_entry ce, *class_entry;
 
@@ -344,11 +345,12 @@ static zend_class_entry *register_class_DuckDB_Value_Date(void)
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
 	class_entry->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
 #endif
+	zend_class_implements(class_entry, 1, class_entry_Stringable);
 
 	return class_entry;
 }
 
-static zend_class_entry *register_class_DuckDB_Value_Time(void)
+static zend_class_entry *register_class_DuckDB_Value_Time(zend_class_entry *class_entry_Stringable)
 {
 	zend_class_entry ce, *class_entry;
 
@@ -359,6 +361,7 @@ static zend_class_entry *register_class_DuckDB_Value_Time(void)
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
 	class_entry->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
 #endif
+	zend_class_implements(class_entry, 1, class_entry_Stringable);
 
 	return class_entry;
 }
