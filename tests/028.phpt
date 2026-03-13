@@ -7,8 +7,8 @@ duckdb
 try {
   new \DuckDB\DuckDB(__DIR__ . "/028.phpt");
 } catch (\DuckDB\ConnectionException $e) {
-  echo $e->getMessage();
+  echo "Connection exception thrown";
 }
 ?>
 --EXPECT--
-Failed to initialize duckdb. Failed to open database
+Connection exception thrown

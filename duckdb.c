@@ -253,6 +253,7 @@ PHP_METHOD(DuckDB_DuckDB, __construct)
     size_t path_len = 0;
     duckdb_database *database;
     duckdb_connection *connection;
+    char *err = NULL;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
@@ -265,9 +266,10 @@ PHP_METHOD(DuckDB_DuckDB, __construct)
     }
 
     database = emalloc(sizeof(duckdb_database));
-    if (duckdb_open(path, database) == DuckDBError)
+    if (duckdb_open_ext(path, database, NULL, &err) == DuckDBError)
     {
-        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to initialize duckdb. Failed to open database", 0);
+        zend_throw_exception(duckdb_connection_exception_class_entry, err, 0);
+        duckdb_free(err);
         efree(database);
         RETURN_THROWS();
     }
@@ -278,7 +280,7 @@ PHP_METHOD(DuckDB_DuckDB, __construct)
         duckdb_close(database);
         efree(database);
         efree(connection);
-        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to initialize duckdb. Failed to connect to database", 0);
+        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to connect to initialised duckdb database", 0);
         RETURN_THROWS();
     }
 
@@ -1030,21 +1032,23 @@ PHP_METHOD(DuckDB_DuckDB, sql)
     duckdb_database database;
     duckdb_connection connection;
     duckdb_state state;
+    char *err = NULL;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_STRING(query, query_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    if (duckdb_open(NULL, &database) == DuckDBError)
+    if (duckdb_open_ext(NULL, &database, NULL, &err) == DuckDBError)
     {
-        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to initialize duckdb. Failed to open database", 0);
+        zend_throw_exception(duckdb_connection_exception_class_entry, err, 0);
+        duckdb_free(err);
         RETURN_THROWS();
     }
 
     if (duckdb_connect(database, &connection) == DuckDBError)
     {
         duckdb_close(&database);
-        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to initialize duckdb. Failed to connect to database", 0);
+        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to connect to initialised duckdb database", 0);
         RETURN_THROWS();
     }
 
@@ -1213,7 +1217,7 @@ PHP_METHOD(DuckDB_Result, fetch)
 
         if (result_t->current_chunk == NULL)
         {
-            RETURN_BOOL(false);
+            RETURN_FALSE;
         }
 
         result_t->current_row = 0;
