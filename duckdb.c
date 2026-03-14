@@ -9,6 +9,7 @@
 #endif
 
 #include "php.h"
+#include "ext/spl/spl_exceptions.h"
 #include "ext/standard/info.h"
 #include "Zend/zend_smart_str.h"
 #include "ext/json/php_json.h"
@@ -1100,22 +1101,79 @@ PHP_METHOD(DuckDB_DuckDB, prepare)
     prepared_statement_t->stmt = stmt;
 }
 
+static idx_t is_valid_param(duckdb_prepared_statement *stmt, zend_string *str, zend_ulong idx)
+{
+    if (str)
+    {
+        idx_t i;
+        duckdb_state state = duckdb_bind_parameter_index(*stmt, &i, ZSTR_VAL(str));
+        return (state == DuckDBError) ? 0 : i;
+    }
+
+    return (idx <= 0 || idx > duckdb_nparams(*stmt)) ? 0 : idx;
+}
+
+static duckdb_value zval_to_duckval(zval *value)
+{
+    switch (Z_TYPE_P(value))
+    {
+        case IS_LONG:
+            return duckdb_create_int64(Z_LVAL_P(value));
+        case IS_DOUBLE:
+            return duckdb_create_double(Z_DVAL_P(value));
+        case IS_TRUE:
+            return duckdb_create_bool(true);
+        case IS_FALSE:
+            return duckdb_create_bool(false);
+        case IS_STRING:
+            return duckdb_create_varchar(Z_STRVAL_P(value));
+        case IS_NULL:
+            return duckdb_create_null_value();
+        default:
+            return NULL;
+    }
+}
+
 PHP_METHOD(DuckDB_PreparedStatement, bindParam)
 {
     zval *object = ZEND_THIS;
     duckdb_prepared_statement_t *prepared_statement_t;
-    zend_long index;
-    char *param = NULL;
-    size_t param_len = 0;
+    zend_string *str_param = NULL;
+    zend_ulong long_param = 0;
+    zval *value = NULL;
+    idx_t idx;
+    duckdb_value val;
+    duckdb_state state;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
-    Z_PARAM_LONG(index)
-    Z_PARAM_STRING(param, param_len)
+    Z_PARAM_STR_OR_LONG(str_param, long_param)
+    Z_PARAM_ZVAL(value)
     ZEND_PARSE_PARAMETERS_END();
 
     prepared_statement_t = Z_PREPARED_STATEMENT_P(object);
-    duckdb_bind_varchar(*prepared_statement_t->stmt, index, param);
-    RETURN_TRUE;
+
+    idx = is_valid_param(prepared_statement_t->stmt, str_param, long_param);
+
+    if (idx == 0)
+    {
+        zend_throw_exception(spl_ce_OutOfBoundsException, "Invalid bound parameter index/name provided", 0);
+        RETURN_THROWS();
+    }
+
+    if ((val = zval_to_duckval(value)) == NULL)
+    {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "Bound parameters must be scalar types", 0);
+        RETURN_THROWS();
+    }
+
+    state = duckdb_bind_value(*prepared_statement_t->stmt, idx, val);
+    duckdb_destroy_value(&val);
+
+    if (state == DuckDBError)
+    {
+        zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(*prepared_statement_t->stmt), 0);
+        RETURN_THROWS();
+    }
 }
 
 PHP_METHOD(DuckDB_PreparedStatement, execute)
@@ -1124,10 +1182,48 @@ PHP_METHOD(DuckDB_PreparedStatement, execute)
     duckdb_prepared_statement_t *prepared_statement_t;
     duckdb_result_t *result_t;
     duckdb_result *res;
+    zval *params = NULL;
+    zend_ulong idx;
+    zend_string *key = NULL;
+    zval *value = NULL;
+    duckdb_value val;
+    duckdb_state state;
 
-    ZEND_PARSE_PARAMETERS_NONE();
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_ARRAY_OR_NULL(params)
+    ZEND_PARSE_PARAMETERS_END();
 
     prepared_statement_t = Z_PREPARED_STATEMENT_P(object);
+
+    if (params)
+    {
+        ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(params), idx, key, value) {
+            idx_t i = is_valid_param(prepared_statement_t->stmt, key, idx);
+
+            if (i == 0)
+            {
+                zend_throw_exception(spl_ce_OutOfBoundsException, "Invalid bound parameter index/name provided", 0);
+                RETURN_THROWS();
+            }
+
+            if ((val = zval_to_duckval(value)) == NULL)
+            {
+                zend_throw_exception(spl_ce_InvalidArgumentException, "Bound parameters must be scalar types", 0);
+                RETURN_THROWS();
+            }
+
+            state = duckdb_bind_value(*prepared_statement_t->stmt, i, val);
+            duckdb_destroy_value(&val);
+
+            if (state == DuckDBError)
+            {
+                zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(*prepared_statement_t->stmt), 0);
+                RETURN_THROWS();
+            }
+        } ZEND_HASH_FOREACH_END();
+    }
+
     res = emalloc(sizeof(duckdb_result));
 
     if (duckdb_execute_prepared(*prepared_statement_t->stmt, res) == DuckDBError)
@@ -1179,7 +1275,7 @@ PHP_METHOD(DuckDB_Result, fetchChunk)
     chunk = duckdb_fetch_chunk(*result_t->result);
     if (!chunk)
     {
-        RETURN_NULL();
+        RETURN_FALSE;
     }
 
     object_init_ex(return_value, duckdb_data_chunk_class_entry);

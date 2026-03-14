@@ -55,7 +55,7 @@ namespace DuckDB {
 
         public function rowCount(): int {}
 
-        public function fetchChunk(): ?DataChunk {}
+        public function fetchChunk(): DataChunk|false {}
 
         public function print(): void {}
 
@@ -84,13 +84,20 @@ namespace DuckDB {
      * @not-serializable
      */
     class PreparedStatement {
-        // Only string allowed for now. TODO: add other types
-        public function bindParam(int $index, string $param): bool {}
 
         /**
+         * @throws \OutOfBoundsException
+         * @throws \InvalidArgumentException
          * @throws QueryException
          */
-        public function execute(): Result {}
+        public function bindParam(string|int $param, mixed $val): void {}
+
+        /**
+         * @throws \OutOfBoundsException
+         * @throws \InvalidArgumentException
+         * @throws QueryException
+         */
+        public function execute(?array $params = null): Result {}
     }
 }
 

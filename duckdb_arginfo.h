@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: a691938cd3ebeaa69eea051d24d5d4229664e189 */
+ * Stub hash: 2edff27f35a14d62b0332cca6e41e365c42f7cde */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_duckdb_info, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
@@ -23,7 +23,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_DuckDB_Result_rowCount arginfo_class_DuckDB_Result_columnCount
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_Result_fetchChunk, 0, 0, DuckDB\\DataChunk, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_DuckDB_Result_fetchChunk, 0, 0, DuckDB\\DataChunk, MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_DuckDB_Result_print arginfo_duckdb_info
@@ -44,12 +44,13 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_Vector_getData, 0, 
 	ZEND_ARG_TYPE_INFO(0, rowIndex, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_PreparedStatement_bindParam, 0, 2, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, index, IS_LONG, 0)
-	ZEND_ARG_TYPE_INFO(0, param, IS_STRING, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_PreparedStatement_bindParam, 0, 2, IS_VOID, 0)
+	ZEND_ARG_TYPE_MASK(0, param, MAY_BE_STRING|MAY_BE_LONG, NULL)
+	ZEND_ARG_TYPE_INFO(0, val, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_PreparedStatement_execute, 0, 0, DuckDB\\Result, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, params, IS_ARRAY, 1, "null")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_DuckDB_Value_Timestamp_infinity arginfo_class_DuckDB_Result_columnCount
