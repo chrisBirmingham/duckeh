@@ -1105,12 +1105,19 @@ static idx_t is_valid_param(duckdb_prepared_statement *stmt, zend_string *str, z
 {
     if (str)
     {
-        idx_t i;
-        duckdb_state state = duckdb_bind_parameter_index(*stmt, &i, ZSTR_VAL(str));
-        return (state == DuckDBError) ? 0 : i;
+        if (duckdb_bind_parameter_index(*stmt, &idx, ZSTR_VAL(str)) == DuckDBError)
+        {
+            zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Unknown bound parameter %s", ZSTR_VAL(str));
+            return 0;
+        }
+    }
+    else if (idx <= 0 || idx > duckdb_nparams(*stmt))
+    {
+        zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Bound parameter %ld is out of bounds", idx);
+        return 0;
     }
 
-    return (idx <= 0 || idx > duckdb_nparams(*stmt)) ? 0 : idx;
+    return idx;
 }
 
 static duckdb_value zval_to_duckval(zval *value)
@@ -1140,17 +1147,14 @@ static bool bind_param(duckdb_prepared_statement *stmt, zend_string *str_param, 
     duckdb_value val;
     duckdb_state state;
 
-    idx = is_valid_param(stmt, str_param, long_param);
-
-    if (idx == 0)
+    if ((idx = is_valid_param(stmt, str_param, long_param)) == 0)
     {
-        zend_throw_exception(spl_ce_OutOfBoundsException, "Invalid bound parameter index/name provided", 0);
         return false;
     }
 
     if ((val = zval_to_duckval(value)) == NULL)
     {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "Bound parameters must be scalar types", 0);
+        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid bound parameter value provided at index %ld. Must be a scalar type", idx);
         return false;
     }
 
