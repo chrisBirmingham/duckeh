@@ -1134,6 +1134,38 @@ static duckdb_value zval_to_duckval(zval *value)
     }
 }
 
+static bool bind_param(duckdb_prepared_statement *stmt, zend_string *str_param, zend_ulong long_param, zval *value)
+{
+    idx_t idx;
+    duckdb_value val;
+    duckdb_state state;
+
+    idx = is_valid_param(stmt, str_param, long_param);
+
+    if (idx == 0)
+    {
+        zend_throw_exception(spl_ce_OutOfBoundsException, "Invalid bound parameter index/name provided", 0);
+        return false;
+    }
+
+    if ((val = zval_to_duckval(value)) == NULL)
+    {
+        zend_throw_exception(spl_ce_InvalidArgumentException, "Bound parameters must be scalar types", 0);
+        return false;
+    }
+
+    state = duckdb_bind_value(*stmt, idx, val);
+    duckdb_destroy_value(&val);
+
+    if (state == DuckDBError)
+    {
+        zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(*stmt), 0);
+        return false;
+    }
+
+    return true;
+}
+
 PHP_METHOD(DuckDB_PreparedStatement, bindParam)
 {
     zval *object = ZEND_THIS;
@@ -1141,9 +1173,6 @@ PHP_METHOD(DuckDB_PreparedStatement, bindParam)
     zend_string *str_param = NULL;
     zend_ulong long_param = 0;
     zval *value = NULL;
-    idx_t idx;
-    duckdb_value val;
-    duckdb_state state;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_STR_OR_LONG(str_param, long_param)
@@ -1152,26 +1181,8 @@ PHP_METHOD(DuckDB_PreparedStatement, bindParam)
 
     prepared_statement_t = Z_PREPARED_STATEMENT_P(object);
 
-    idx = is_valid_param(prepared_statement_t->stmt, str_param, long_param);
-
-    if (idx == 0)
+    if (!bind_param(prepared_statement_t->stmt, str_param, long_param, value))
     {
-        zend_throw_exception(spl_ce_OutOfBoundsException, "Invalid bound parameter index/name provided", 0);
-        RETURN_THROWS();
-    }
-
-    if ((val = zval_to_duckval(value)) == NULL)
-    {
-        zend_throw_exception(spl_ce_InvalidArgumentException, "Bound parameters must be scalar types", 0);
-        RETURN_THROWS();
-    }
-
-    state = duckdb_bind_value(*prepared_statement_t->stmt, idx, val);
-    duckdb_destroy_value(&val);
-
-    if (state == DuckDBError)
-    {
-        zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(*prepared_statement_t->stmt), 0);
         RETURN_THROWS();
     }
 }
@@ -1186,8 +1197,6 @@ PHP_METHOD(DuckDB_PreparedStatement, execute)
     zend_ulong idx;
     zend_string *key = NULL;
     zval *value = NULL;
-    duckdb_value val;
-    duckdb_state state;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
@@ -1199,26 +1208,8 @@ PHP_METHOD(DuckDB_PreparedStatement, execute)
     if (params)
     {
         ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(params), idx, key, value) {
-            idx_t i = is_valid_param(prepared_statement_t->stmt, key, idx);
-
-            if (i == 0)
+            if (!bind_param(prepared_statement_t->stmt, key, idx, value))
             {
-                zend_throw_exception(spl_ce_OutOfBoundsException, "Invalid bound parameter index/name provided", 0);
-                RETURN_THROWS();
-            }
-
-            if ((val = zval_to_duckval(value)) == NULL)
-            {
-                zend_throw_exception(spl_ce_InvalidArgumentException, "Bound parameters must be scalar types", 0);
-                RETURN_THROWS();
-            }
-
-            state = duckdb_bind_value(*prepared_statement_t->stmt, i, val);
-            duckdb_destroy_value(&val);
-
-            if (state == DuckDBError)
-            {
-                zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(*prepared_statement_t->stmt), 0);
                 RETURN_THROWS();
             }
         } ZEND_HASH_FOREACH_END();
@@ -1940,6 +1931,7 @@ PHP_MINFO_FUNCTION(duckdb)
 {
     php_info_print_table_start();
     php_info_print_table_row(2, "duckdb support", "enabled");
+    php_info_print_table_row(2, "libduckdb", duckdb_library_version());
     php_info_print_table_end();
 }
 
