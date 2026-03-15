@@ -245,6 +245,27 @@ static zend_object *duckdb_time_new(zend_class_entry *ce)
     return &time->std;
 }
 
+static bool connect_to_db(duckdb_database *database, duckdb_connection *connection, const char* path)
+{
+    char *err = NULL;
+
+    if (duckdb_open_ext(path, database, NULL, &err) == DuckDBError)
+    {
+        zend_throw_exception(duckdb_connection_exception_class_entry, err, 0);
+        duckdb_free(err);
+        return false;
+    }
+
+    if (duckdb_connect(*database, connection) == DuckDBError)
+    {
+        duckdb_close(database);
+        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to connect to initialised duckdb database", 0);
+        return false;
+    }
+
+    return true;
+}
+
 /* Constructors */
 PHP_METHOD(DuckDB_DuckDB, __construct)
 {
@@ -261,27 +282,13 @@ PHP_METHOD(DuckDB_DuckDB, __construct)
     Z_PARAM_STRING(path, path_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    if (path_len == 0)
-    {
-        path = NULL;
-    }
-
     database = emalloc(sizeof(duckdb_database));
-    if (duckdb_open_ext(path, database, NULL, &err) == DuckDBError)
-    {
-        zend_throw_exception(duckdb_connection_exception_class_entry, err, 0);
-        duckdb_free(err);
-        efree(database);
-        RETURN_THROWS();
-    }
-
     connection = emalloc(sizeof(duckdb_connection));
-    if (duckdb_connect(*database, connection) == DuckDBError)
+
+    if (!connect_to_db(database, connection, path))
     {
-        duckdb_close(database);
         efree(database);
         efree(connection);
-        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to connect to initialised duckdb database", 0);
         RETURN_THROWS();
     }
 
@@ -1039,24 +1046,15 @@ PHP_METHOD(DuckDB_DuckDB, sql)
     Z_PARAM_STRING(query, query_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    if (duckdb_open_ext(NULL, &database, NULL, &err) == DuckDBError)
+    if (!connect_to_db(&database, &connection, NULL))
     {
-        zend_throw_exception(duckdb_connection_exception_class_entry, err, 0);
-        duckdb_free(err);
-        RETURN_THROWS();
-    }
-
-    if (duckdb_connect(database, &connection) == DuckDBError)
-    {
-        duckdb_close(&database);
-        zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to connect to initialised duckdb database", 0);
         RETURN_THROWS();
     }
 
     res = emalloc(sizeof(duckdb_result));
     state = duckdb_query(connection, query, res);
 
-    /* We wan to disconnect regardless of outcome */
+    /* We want to disconnect regardless of outcome */
     duckdb_disconnect(&connection);
     duckdb_close(&database);
 
