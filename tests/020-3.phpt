@@ -13,17 +13,17 @@ $stmt = $duckDB->prepare("SELECT * FROM test_data WHERE b = $1");
 
 try {
     $stmt->execute([1 => []]);
-} catch (InvalidArgumentException) {
-    echo "Invalid type provided execute\n";
+} catch (InvalidArgumentException $e) {
+    echo $e->getMessage() . "\n";
 }
 
 try {
     $stmt->bindParam(1, []);
-} catch (InvalidArgumentException) {
-    echo "Invalid type provided bind\n";
+} catch (InvalidArgumentException $e) {
+    echo $e->getMessage() . "\n";
 }
 
 ?>
 --EXPECT--
-Invalid type provided execute
-Invalid type provided bind
+Invalid bound parameter value provided at index '1'. Must be a scalar type
+Invalid bound parameter value provided at index '1'. Must be a scalar type

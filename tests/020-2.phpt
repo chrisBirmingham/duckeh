@@ -13,24 +13,24 @@ $stmt = $duckDB->prepare("SELECT * FROM test_data WHERE b = $1");
 
 try {
     $stmt->bindParam(0, true);
-} catch (OutOfBoundsException) {
-    echo "Out of bounds less than thrown\n";
+} catch (OutOfBoundsException $e) {
+    echo $e->getMessage() . "\n";
 }
 
 try {
     $stmt->bindParam(2, true);
-} catch (OutOfBoundsException) {
-    echo "Out of bounds more than thrown\n";
+} catch (OutOfBoundsException $e) {
+    echo $e->getMessage() . "\n";
 }
 
 try {
     $stmt->bindParam('quack', true);
-} catch (OutOfBoundsException) {
-    echo "Out of bounds string index thrown\n";
+} catch (OutOfBoundsException $e) {
+    echo $e->getMessage() . "\n";
 }
 
 ?>
 --EXPECT--
-Out of bounds less than thrown
-Out of bounds more than thrown
-Out of bounds string index thrown
+Bound Parameter index '0' is out of bounds
+Bound Parameter index '2' is out of bounds
+Unknown bound parameter 'quack'

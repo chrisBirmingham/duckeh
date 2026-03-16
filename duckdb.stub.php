@@ -28,7 +28,7 @@ namespace DuckDB {
         /**
          * @throws ConnectionException
          */
-        public function __construct(?string $path = null) {}
+        public function __construct(?string $path = null, ?array $options = null) {}
 
         /**
          * @throws QueryException

@@ -245,13 +245,56 @@ static zend_object *duckdb_time_new(zend_class_entry *ce)
     return &time->std;
 }
 
-static bool connect_to_db(duckdb_database *database, duckdb_connection *connection, const char* path)
+static inline void free_config(duckdb_config *config)
 {
+    if (config)
+    {
+        duckdb_destroy_config(config);
+    }
+}
+
+static bool create_config(duckdb_config *config, HashTable *options)
+{
+    zend_string *key = NULL;
+    zval *value = NULL;
+
+    if (duckdb_create_config(config) == DuckDBError)
+    {
+        return false;
+    }
+
+    ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(options, key, value) {
+        if (Z_TYPE_P(value) != IS_STRING)
+        {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value for config option '%s'. Value must be a string", ZSTR_VAL(key));
+            return false;
+        }
+
+        if (duckdb_set_config(*config, ZSTR_VAL(key), Z_STRVAL_P(value)) == DuckDBError)
+        {
+            zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Failed to set config option '%s'", ZSTR_VAL(key));
+            return false;
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    return true;
+}
+
+static bool connect_to_db(duckdb_database *database, duckdb_connection *connection, const char* path, HashTable *options)
+{
+    duckdb_config config = NULL;
     char *err = NULL;
 
-    if (duckdb_open_ext(path, database, NULL, &err) == DuckDBError)
+    if (options && !create_config(&config, options))
+    {
+        free_config(&config);
+        return false;
+    }
+
+    if (duckdb_open_ext(path, database, config, &err) == DuckDBError)
     {
         zend_throw_exception(duckdb_connection_exception_class_entry, err, 0);
+        free_config(&config);
         duckdb_free(err);
         return false;
     }
@@ -259,6 +302,7 @@ static bool connect_to_db(duckdb_database *database, duckdb_connection *connecti
     if (duckdb_connect(*database, connection) == DuckDBError)
     {
         duckdb_close(database);
+        free_config(&config);
         zend_throw_exception(duckdb_connection_exception_class_entry, "Failed to connect to initialised duckdb database", 0);
         return false;
     }
@@ -273,19 +317,20 @@ PHP_METHOD(DuckDB_DuckDB, __construct)
     duckdb_t *duckdb_t;
     char *path = NULL;
     size_t path_len = 0;
+    HashTable *options = NULL;
     duckdb_database *database;
     duckdb_connection *connection;
-    char *err = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0, 1)
+    ZEND_PARSE_PARAMETERS_START(0, 2)
     Z_PARAM_OPTIONAL
-    Z_PARAM_STRING(path, path_len)
+    Z_PARAM_STRING_OR_NULL(path, path_len)
+    Z_PARAM_ARRAY_HT_OR_NULL(options)
     ZEND_PARSE_PARAMETERS_END();
 
     database = emalloc(sizeof(duckdb_database));
     connection = emalloc(sizeof(duckdb_connection));
 
-    if (!connect_to_db(database, connection, path))
+    if (!connect_to_db(database, connection, path, options))
     {
         efree(database);
         efree(connection);
@@ -1046,7 +1091,7 @@ PHP_METHOD(DuckDB_DuckDB, sql)
     Z_PARAM_STRING(query, query_len)
     ZEND_PARSE_PARAMETERS_END();
 
-    if (!connect_to_db(&database, &connection, NULL))
+    if (!connect_to_db(&database, &connection, NULL, NULL))
     {
         RETURN_THROWS();
     }
@@ -1099,23 +1144,28 @@ PHP_METHOD(DuckDB_DuckDB, prepare)
     prepared_statement_t->stmt = stmt;
 }
 
-static idx_t is_valid_param(duckdb_prepared_statement *stmt, zend_string *str, zend_ulong idx)
+static idx_t is_valid_param(duckdb_prepared_statement *stmt, zend_string *str, zend_long index)
 {
+    idx_t i;
+
     if (str)
     {
-        if (duckdb_bind_parameter_index(*stmt, &idx, ZSTR_VAL(str)) == DuckDBError)
+        if (duckdb_bind_parameter_index(*stmt, &i, ZSTR_VAL(str)) == DuckDBError)
         {
-            zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Unknown bound parameter %s", ZSTR_VAL(str));
+            zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Unknown bound parameter '%s'", ZSTR_VAL(str));
             return 0;
         }
+
+        return i;
     }
-    else if (idx <= 0 || idx > duckdb_nparams(*stmt))
+
+    if (index <= 0 || index > duckdb_nparams(*stmt))
     {
-        zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Bound parameter %ld is out of bounds", idx);
+        zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Bound Parameter index '%lld' is out of bounds", index);
         return 0;
     }
 
-    return idx;
+    return index;
 }
 
 static duckdb_value zval_to_duckval(zval *value)
@@ -1139,7 +1189,7 @@ static duckdb_value zval_to_duckval(zval *value)
     }
 }
 
-static bool bind_param(duckdb_prepared_statement *stmt, zend_string *str_param, zend_ulong long_param, zval *value)
+static bool bind_param(duckdb_prepared_statement *stmt, zend_string *str_param, zend_long long_param, zval *value)
 {
     idx_t idx;
     duckdb_value val;
@@ -1152,7 +1202,7 @@ static bool bind_param(duckdb_prepared_statement *stmt, zend_string *str_param, 
 
     if ((val = zval_to_duckval(value)) == NULL)
     {
-        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid bound parameter value provided at index %ld. Must be a scalar type", idx);
+        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid bound parameter value provided at index '%lld'. Must be a scalar type", idx);
         return false;
     }
 
@@ -1173,7 +1223,7 @@ PHP_METHOD(DuckDB_PreparedStatement, bindParam)
     zval *object = ZEND_THIS;
     duckdb_prepared_statement_t *prepared_statement_t;
     zend_string *str_param = NULL;
-    zend_ulong long_param = 0;
+    zend_long long_param = 0;
     zval *value = NULL;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
