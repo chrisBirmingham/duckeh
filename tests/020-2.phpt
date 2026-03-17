@@ -31,6 +31,6 @@ try {
 
 ?>
 --EXPECT--
-Bound Parameter index '0' is out of bounds
-Bound Parameter index '2' is out of bounds
-Unknown bound parameter 'quack'
+Parameter index '0' is out of bounds
+Parameter index '2' is out of bounds
+Unknown named parameter 'quack'

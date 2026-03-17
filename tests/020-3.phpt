@@ -23,7 +23,16 @@ try {
     echo $e->getMessage() . "\n";
 }
 
+$stmt = $duckDB->prepare('SELECT * FROM test_data WHERE i = $index');
+
+try {
+    $result = $stmt->execute(['index' => []]);
+} catch (InvalidArgumentException $e) {
+    echo $e->getMessage() . "\n";
+}
+
 ?>
 --EXPECT--
-Invalid bound parameter value provided at index '1'. Must be a scalar type
-Invalid bound parameter value provided at index '1'. Must be a scalar type
+Invalid value provided for parameter index '1'. Value must be a scalar type
+Invalid value provided for parameter index '1'. Value must be a scalar type
+Invalid value provided for named parameter 'index'. Value must be a scalar type

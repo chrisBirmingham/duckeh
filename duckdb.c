@@ -1144,30 +1144,6 @@ PHP_METHOD(DuckDB_DuckDB, prepare)
     prepared_statement_t->stmt = stmt;
 }
 
-static idx_t is_valid_param(duckdb_prepared_statement *stmt, zend_string *str, zend_long index)
-{
-    idx_t i;
-
-    if (str)
-    {
-        if (duckdb_bind_parameter_index(*stmt, &i, ZSTR_VAL(str)) == DuckDBError)
-        {
-            zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Unknown bound parameter '%s'", ZSTR_VAL(str));
-            return 0;
-        }
-
-        return i;
-    }
-
-    if (index <= 0 || index > duckdb_nparams(*stmt))
-    {
-        zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Bound Parameter index '%lld' is out of bounds", index);
-        return 0;
-    }
-
-    return index;
-}
-
 static duckdb_value zval_to_duckval(zval *value)
 {
     switch (Z_TYPE_P(value))
@@ -1189,20 +1165,54 @@ static duckdb_value zval_to_duckval(zval *value)
     }
 }
 
+static idx_t bind_param_string(duckdb_prepared_statement *stmt, zend_string *param, zval *value, duckdb_value *ret)
+{
+    idx_t index;
+
+    if (duckdb_bind_parameter_index(*stmt, &index, ZSTR_VAL(param)) == DuckDBError)
+    {
+        zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Unknown named parameter '%s'", ZSTR_VAL(param));
+        return 0;
+    }
+
+    if ((*ret = zval_to_duckval(value)) == NULL)
+    {
+        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value provided for named parameter '%s'. Value must be a scalar type", ZSTR_VAL(param));
+        return 0;
+    }
+
+    return index;
+}
+
+static idx_t bind_param_numeric(duckdb_prepared_statement *stmt, zend_long index, zval *value, duckdb_value *ret)
+{
+    if (index <= 0 || index > duckdb_nparams(*stmt))
+    {
+        zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Parameter index '%lld' is out of bounds", index);
+        return 0;
+    }
+
+    if ((*ret = zval_to_duckval(value)) == NULL)
+    {
+        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value provided for parameter index '%lld'. Value must be a scalar type", index);
+        return 0;
+    }
+
+    return index;
+}
+
 static bool bind_param(duckdb_prepared_statement *stmt, zend_string *str_param, zend_long long_param, zval *value)
 {
     idx_t idx;
-    duckdb_value val;
+    duckdb_value val = NULL;
     duckdb_state state;
 
-    if ((idx = is_valid_param(stmt, str_param, long_param)) == 0)
-    {
-        return false;
-    }
+    idx = (str_param)
+        ? bind_param_string(stmt, str_param, value, &val)
+        : bind_param_numeric(stmt, long_param, value, &val);
 
-    if ((val = zval_to_duckval(value)) == NULL)
+    if (idx == 0)
     {
-        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid bound parameter value provided at index '%lld'. Must be a scalar type", idx);
         return false;
     }
 
