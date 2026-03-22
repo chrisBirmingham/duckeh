@@ -11,9 +11,9 @@ $result = $duckDB->query("SELECT {'yes': 'duck', 'maybe': 'goose', 'huh': NULL, 
 $columns = $result->columnCount();
 while ($dataChunk = $result->fetchChunk()) {
     $rows = $dataChunk->getSize();
-    for ($i=0; $i<$columns; $i++) {
+    for ($i = 0; $i < $columns; $i++) {
         $vector = $dataChunk->getVector($i);
-        for ($r=0; $r<$rows; $r++) {
+        for ($r = 0; $r < $rows; $r++) {
             $data = $vector->getData($r);
             var_dump($data);
         }
@@ -24,9 +24,9 @@ $result = $duckDB->query("SELECT * FROM VALUES ({'yes': 'duck', 'maybe': 'goose'
 $columns = $result->columnCount();
 while ($dataChunk = $result->fetchChunk()) {
     $rows = $dataChunk->getSize();
-    for ($i=0; $i<$columns; $i++) {
+    for ($i = 0; $i < $columns; $i++) {
         $vector = $dataChunk->getVector($i);
-        for ($r=0; $r<$rows; $r++) {
+        for ($r = 0; $r < $rows; $r++) {
             $data = $vector->getData($r);
             var_dump($data);
         }

@@ -104,7 +104,6 @@ namespace DuckDB {
 /**
  * @generate-class-entries
  */
-
 namespace DuckDB\Value {
     /**
      * @var int
@@ -172,6 +171,3 @@ namespace DuckDB\Value {
     }
 }
 
-namespace {
-    function duckdb_info(): void {}
-}

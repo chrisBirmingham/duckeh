@@ -7,7 +7,7 @@ duckdb
 $duckDB = new \DuckDB\DuckDB();
 
 $result = $duckDB->query("SELECT 'quack' as mycolumn");
-//var_dump($result);
+
 while ($dataChunk = $result->fetchChunk()) {
     var_dump($dataChunk);
 }

@@ -11,9 +11,5 @@ $result = $duckDB->query("SELECT 'quack' as mycolumn");
 var_dump($result);
 ?>
 --EXPECT--
-object(DuckDB\Result)#2 (1) {
-  ["{duckdb_result}"]=>
-  array(0) {
-  }
+object(DuckDB\Result)#2 (0) {
 }
-

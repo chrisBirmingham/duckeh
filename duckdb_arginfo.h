@@ -1,8 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d84ed64618ccfedc31d5583c95ca1c2df544acc1 */
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_duckdb_info, 0, 0, IS_VOID, 0)
-ZEND_END_ARG_INFO()
+ * Stub hash: d1fc5a85798907e1a573c15b4ea742fb21adfe3d */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DuckDB_DuckDB___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, path, IS_STRING, 1, "null")
@@ -27,7 +24,8 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_DuckDB_Result_fetchChunk, 0, 0, DuckDB\\DataChunk, MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_DuckDB_Result_print arginfo_duckdb_info
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_Result_print, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_DuckDB_Result_fetch, 0, 0, MAY_BE_ARRAY|MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
@@ -89,7 +87,6 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_DuckDB_Value_Time___toString arginfo_class_DuckDB_Value_Timestamp___toString
 
-ZEND_FUNCTION(duckdb_info);
 ZEND_METHOD(DuckDB_DuckDB, __construct);
 ZEND_METHOD(DuckDB_DuckDB, query);
 ZEND_METHOD(DuckDB_DuckDB, prepare);
@@ -121,11 +118,6 @@ ZEND_METHOD(DuckDB_Value_Time, getMinutes);
 ZEND_METHOD(DuckDB_Value_Time, getSeconds);
 ZEND_METHOD(DuckDB_Value_Time, getMicroseconds);
 ZEND_METHOD(DuckDB_Value_Time, __toString);
-
-static const zend_function_entry ext_functions[] = {
-	ZEND_FE(duckdb_info, arginfo_duckdb_info)
-	ZEND_FE_END
-};
 
 static const zend_function_entry class_DuckDB_DuckDB_methods[] = {
 	ZEND_ME(DuckDB_DuckDB, __construct, arginfo_class_DuckDB_DuckDB___construct, ZEND_ACC_PUBLIC)
