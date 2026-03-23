@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d1fc5a85798907e1a573c15b4ea742fb21adfe3d */
+ * Stub hash: 986b21ff6eac606ac053866bb1de9e4716e115bf */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DuckDB_DuckDB___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, path, IS_STRING, 1, "null")
@@ -12,6 +12,11 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_DuckDB_prepare, 0, 1, DuckDB\\PreparedStatement, 0)
 	ZEND_ARG_TYPE_INFO(0, query, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_DuckDB_append, 0, 1, DuckDB\\AppendStatement, 0)
+	ZEND_ARG_TYPE_INFO(0, table, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, schema, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_DuckDB_DuckDB_sql arginfo_class_DuckDB_DuckDB_query
@@ -52,6 +57,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_PreparedStatement_ex
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, params, IS_ARRAY, 1, "null")
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_AppendStatement_execute, 0, 1, DuckDB\\Result, 0)
+	ZEND_ARG_TYPE_INFO(0, rows, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
 #define arginfo_class_DuckDB_Value_Timestamp_infinity arginfo_class_DuckDB_Result_columnCount
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_Value_Timestamp_getDate, 0, 0, DuckDB\\Value\\Date, 0)
@@ -90,6 +99,7 @@ ZEND_END_ARG_INFO()
 ZEND_METHOD(DuckDB_DuckDB, __construct);
 ZEND_METHOD(DuckDB_DuckDB, query);
 ZEND_METHOD(DuckDB_DuckDB, prepare);
+ZEND_METHOD(DuckDB_DuckDB, append);
 ZEND_METHOD(DuckDB_DuckDB, sql);
 ZEND_METHOD(DuckDB_Result, columnCount);
 ZEND_METHOD(DuckDB_Result, rowCount);
@@ -102,6 +112,7 @@ ZEND_METHOD(DuckDB_DataChunk, getVector);
 ZEND_METHOD(DuckDB_Vector, getData);
 ZEND_METHOD(DuckDB_PreparedStatement, bindParam);
 ZEND_METHOD(DuckDB_PreparedStatement, execute);
+ZEND_METHOD(DuckDB_AppendStatement, execute);
 ZEND_METHOD(DuckDB_Value_Timestamp, infinity);
 ZEND_METHOD(DuckDB_Value_Timestamp, getDate);
 ZEND_METHOD(DuckDB_Value_Timestamp, getTime);
@@ -123,6 +134,7 @@ static const zend_function_entry class_DuckDB_DuckDB_methods[] = {
 	ZEND_ME(DuckDB_DuckDB, __construct, arginfo_class_DuckDB_DuckDB___construct, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_DuckDB, query, arginfo_class_DuckDB_DuckDB_query, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_DuckDB, prepare, arginfo_class_DuckDB_DuckDB_prepare, ZEND_ACC_PUBLIC)
+	ZEND_ME(DuckDB_DuckDB, append, arginfo_class_DuckDB_DuckDB_append, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_DuckDB, sql, arginfo_class_DuckDB_DuckDB_sql, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
 	ZEND_FE_END
 };
@@ -151,6 +163,11 @@ static const zend_function_entry class_DuckDB_Vector_methods[] = {
 static const zend_function_entry class_DuckDB_PreparedStatement_methods[] = {
 	ZEND_ME(DuckDB_PreparedStatement, bindParam, arginfo_class_DuckDB_PreparedStatement_bindParam, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_PreparedStatement, execute, arginfo_class_DuckDB_PreparedStatement_execute, ZEND_ACC_PUBLIC)
+	ZEND_FE_END
+};
+
+static const zend_function_entry class_DuckDB_AppendStatement_methods[] = {
+	ZEND_ME(DuckDB_AppendStatement, execute, arginfo_class_DuckDB_AppendStatement_execute, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -302,6 +319,21 @@ static zend_class_entry *register_class_DuckDB_PreparedStatement(void)
 	zend_class_entry ce, *class_entry;
 
 	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "PreparedStatement", class_DuckDB_PreparedStatement_methods);
+#if (PHP_VERSION_ID >= 80400)
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_NOT_SERIALIZABLE);
+#else
+	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	class_entry->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
+#endif
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DuckDB_AppendStatement(void)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "AppendStatement", class_DuckDB_AppendStatement_methods);
 #if (PHP_VERSION_ID >= 80400)
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_NOT_SERIALIZABLE);
 #else

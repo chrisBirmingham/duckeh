@@ -2,47 +2,45 @@
 #include <zend_types.h>
 
 /* Structs */
-typedef struct duckdb_t
-{
+typedef struct duckdb_t {
   duckdb_database *database;
   duckdb_connection *connection;
   zend_object std;
 } duckdb_t;
 
-typedef struct duckdb_database_t
-{
+typedef struct duckdb_database_t {
   duckdb_database db;
   zend_object std;
 } duckdb_database_t;
 
-typedef struct duckdb_connection_t
-{
+typedef struct duckdb_connection_t {
   duckdb_connection conn;
   zend_object std;
 } duckdb_connection_t;
 
-typedef struct duckdb_prepared_statement_t
-{
+typedef struct duckdb_prepared_statement_t {
   duckdb_prepared_statement *stmt;
   zend_object std;
 } duckdb_prepared_statement_t;
 
-typedef struct duckdb_result_t
-{
+typedef struct duckdb_append_statement_t {
+  duckdb_appender *stmt;
+  zend_object std;
+} duckdb_append_statement_t;
+
+typedef struct duckdb_result_t {
   duckdb_data_chunk current_chunk;
   idx_t current_row;
   duckdb_result *result;
   zend_object std;
 } duckdb_result_t;
 
-typedef struct duckdb_data_chunk_t
-{
+typedef struct duckdb_data_chunk_t {
   duckdb_data_chunk chunk;
   zend_object std;
 } duckdb_data_chunk_t;
 
-typedef struct duckdb_vector_t
-{
+typedef struct duckdb_vector_t {
   duckdb_vector vector;
   duckdb_type type;
   duckdb_logical_type logical_type;
@@ -51,22 +49,19 @@ typedef struct duckdb_vector_t
   zend_object std;
 } duckdb_vector_t;
 
-typedef struct duckdb_timestamp_t
-{
+typedef struct duckdb_timestamp_t {
   duckdb_timestamp timestamp;
   zend_object std;
 } duckdb_timestamp_t;
 
-typedef struct duckdb_date_t
-{
+typedef struct duckdb_date_t {
   duckdb_date date;
   duckdb_date_struct date_struct;
   bool date_struct_initialised;
   zend_object std;
 } duckdb_date_t;
 
-typedef struct duckdb_time_t
-{
+typedef struct duckdb_time_t {
   duckdb_time time;
   duckdb_time_struct time_struct;
   bool time_struct_initialised;
@@ -85,6 +80,12 @@ static inline duckdb_prepared_statement_t *prepared_statement_t_from_obj(zend_ob
   return (duckdb_prepared_statement_t *)((char *)(obj)-XtOffsetOf(duckdb_prepared_statement_t, std));
 }
 #define Z_PREPARED_STATEMENT_P(zv) prepared_statement_t_from_obj(Z_OBJ_P(zv))
+
+static inline duckdb_append_statement_t *append_statement_t_from_obj(zend_object *obj)
+{
+  return (duckdb_append_statement_t *)((char *)(obj)-XtOffsetOf(duckdb_append_statement_t, std));
+}
+#define Z_APPEND_STATEMENT_P(zv) append_statement_t_from_obj(Z_OBJ_P(zv))
 
 static inline duckdb_result_t *duckdb_result_t_from_obj(zend_object *obj)
 {

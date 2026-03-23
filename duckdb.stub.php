@@ -24,7 +24,8 @@ namespace DuckDB {
     /**
      * @not-serializable
      */
-    class DuckDB {
+    class DuckDB
+    {
         /**
          * @throws ConnectionException
          */
@@ -41,6 +42,11 @@ namespace DuckDB {
         public function prepare(string $query): PreparedStatement {}
 
         /**
+         * @throws QueryException
+         */
+        public function append(string $table, ?string $schema = null): AppendStatement {}
+
+        /**
          * @throws ConnectionException
          * @throws QueryException
          */
@@ -50,7 +56,8 @@ namespace DuckDB {
     /**
      * @not-serializable
      */
-    class Result {
+    class Result
+    {
         public function columnCount(): int {}
 
         public function rowCount(): int {}
@@ -67,7 +74,8 @@ namespace DuckDB {
     /**
      * @not-serializable
      */
-    class DataChunk {
+    class DataChunk
+    {
         public function getSize(): int {}
 
         public function getVector(int $columnIndex): Vector {}
@@ -76,14 +84,16 @@ namespace DuckDB {
     /**
      * @not-serializable
      */
-    class Vector {
+    class Vector
+    {
         public function getData(int $rowIndex): mixed {}
     }
 
     /**
      * @not-serializable
      */
-    class PreparedStatement {
+    class PreparedStatement
+    {
 
         /**
          * @throws \OutOfBoundsException
@@ -98,6 +108,19 @@ namespace DuckDB {
          * @throws QueryException
          */
         public function execute(?array $params = null): Result {}
+    }
+
+    /**
+     * @not-serializable
+     */
+    class AppendStatement
+    {
+        /**
+         * @throws QueryException
+         */
+        public function execute(array $rows): void {}
+
+        public function flush(): void {}
     }
 }
 
@@ -126,7 +149,8 @@ namespace DuckDB\Value {
     /**
      * @not-serializable
      */
-    class Timestamp implements \Stringable {
+    class Timestamp implements \Stringable
+    {
         public function infinity(): int {}
 
         public function getDate(): Date {}
@@ -139,7 +163,8 @@ namespace DuckDB\Value {
     /**
      * @not-serializable
      */
-    class Date implements \Stringable {
+    class Date implements \Stringable
+    {
         public function infinity(): int {}
 
         public function getYear(): int {}
@@ -156,7 +181,8 @@ namespace DuckDB\Value {
     /**
      * @not-serializable
      */
-    class Time implements \Stringable {
+    class Time implements \Stringable
+    {
         public function getTotalMicroseconds(): int {}
 
         public function getHour(): int {}
@@ -170,4 +196,3 @@ namespace DuckDB\Value {
         public function __toString(): string {}
     }
 }
-

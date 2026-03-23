@@ -37,6 +37,7 @@ static zend_object_handlers duckdb_object_handlers;
 static zend_object_handlers database_object_handlers;
 static zend_object_handlers connection_object_handlers;
 static zend_object_handlers prepared_statement_object_handlers;
+static zend_object_handlers append_statement_object_handlers;
 static zend_object_handlers result_object_handlers;
 static zend_object_handlers data_chunk_object_handlers;
 static zend_object_handlers vector_object_handlers;
@@ -48,6 +49,7 @@ static zend_class_entry *duckdb_class_entry = NULL;
 static zend_class_entry *duckdb_database_class_entry = NULL;
 static zend_class_entry *duckdb_connection_class_entry = NULL;
 static zend_class_entry *duckdb_prepared_statement_class_entry = NULL;
+static zend_class_entry *duckdb_append_statement_class_entry = NULL;
 static zend_class_entry *duckdb_result_class_entry = NULL;
 static zend_class_entry *duckdb_data_chunk_class_entry = NULL;
 static zend_class_entry *duckdb_vector_class_entry = NULL;
@@ -87,6 +89,18 @@ static void prepared_statement_free_obj(zend_object *obj)
 
   efree(prepared_statement->stmt);
   zend_object_std_dtor(&prepared_statement->std);
+}
+
+static void append_statement_free_obj(zend_object *obj)
+{
+  duckdb_append_statement_t *append_statement = append_statement_t_from_obj(obj);
+
+  if (append_statement->stmt != NULL) {
+    duckdb_appender_destroy(append_statement->stmt);
+  }
+
+  efree(append_statement->stmt);
+  zend_object_std_dtor(&append_statement->std);
 }
 
 static void duckdb_result_free_obj(zend_object *obj)
@@ -164,6 +178,16 @@ static zend_object *prepared_statement_new(zend_class_entry *ce)
   object_properties_init(&prepared_statement->std, ce);
   prepared_statement->std.handlers = &prepared_statement_object_handlers;
   return &prepared_statement->std;
+}
+
+static zend_object *append_statement_new(zend_class_entry *ce)
+{
+  duckdb_append_statement_t *append_statement = zend_object_alloc(sizeof(duckdb_append_statement_t), ce);
+
+  zend_object_std_init(&append_statement->std, ce);
+  object_properties_init(&append_statement->std, ce);
+  append_statement->std.handlers = &append_statement_object_handlers;
+  return &append_statement->std;
 }
 
 static zend_object *duckdb_result_new(zend_class_entry *ce)
@@ -1037,6 +1061,37 @@ PHP_METHOD(DuckDB_DuckDB, prepare)
   prepared_statement_t->stmt = stmt;
 }
 
+PHP_METHOD(DuckDB_DuckDB, append)
+{
+  zval *object = ZEND_THIS;
+  duckdb_t *duckdb_t;
+  char *table = NULL;
+  size_t table_len = 0;
+  char *schema = NULL;
+  size_t schema_len = 0;
+  duckdb_appender *appender;
+
+  ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_STRING(table, table_len)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_STRING_OR_NULL(schema, schema_len)
+  ZEND_PARSE_PARAMETERS_END();
+
+  duckdb_t = Z_DUCKDB_P(object);
+  appender = emalloc(sizeof(duckdb_appender));
+
+  if (duckdb_appender_create(*duckdb_t->connection, schema, table, appender) == DuckDBError) {
+    //zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(*stmt), 0);
+    duckdb_appender_destroy(appender);
+    efree(appender);
+    RETURN_THROWS();
+  }
+
+  object_init_ex(return_value, duckdb_append_statement_class_entry);
+  duckdb_append_statement_t *append_statement_t = Z_APPEND_STATEMENT_P(return_value);
+  append_statement_t->stmt = appender;
+}
+
 static duckdb_value zval_to_duckval(zval *value)
 {
   switch (Z_TYPE_P(value)) {
@@ -1170,6 +1225,44 @@ PHP_METHOD(DuckDB_PreparedStatement, execute)
   object_init_ex(return_value, duckdb_result_class_entry);
   result_t = Z_DUCKDB_RESULT_P(return_value);
   result_t->result = res;
+}
+
+static zend_result append_row(duckdb_appender *appender, zend_array *row)
+{
+  zval *value = NULL;
+
+  ZEND_HASH_FOREACH_VAL(row, value) {
+    duckdb_value val = zval_to_duckval(value);
+    duckdb_append_value(*appender, val);
+    duckdb_destroy_value(&val);
+  } ZEND_HASH_FOREACH_END();
+
+  duckdb_appender_end_row(*appender);
+  return SUCCESS;
+}
+
+PHP_METHOD(DuckDB_Append, execute)
+{
+  zval *object = ZEND_THIS;
+  duckdb_append_statement_t *append_t;
+  zval *rows = NULL;
+  zval *value = NULL;
+
+  ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_ARRAY(rows)
+  ZEND_PARSE_PARAMETERS_END();
+
+  append_t = Z_APPEND_STATEMENT_P(object);
+
+  ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(rows), value) {
+    if (Z_TYPE(*value) != IS_ARRAY) {
+      RETURN_THROWS();
+    }
+
+    if (append_row(append_t->stmt, Z_ARRVAL_P(value)) == FAILURE) {
+      RETURN_THROWS();
+    }
+  } ZEND_HASH_FOREACH_END();
 }
 
 PHP_METHOD(DuckDB_Result, rowCount)
@@ -1767,6 +1860,7 @@ PHP_MINIT_FUNCTION(duckdb)
 
   memcpy(&duckdb_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&prepared_statement_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+  memcpy(&append_statement_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&result_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&data_chunk_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&vector_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
@@ -1783,6 +1877,11 @@ PHP_MINIT_FUNCTION(duckdb)
   duckdb_prepared_statement_class_entry->create_object = prepared_statement_new;
   prepared_statement_object_handlers.offset = XtOffsetOf(duckdb_prepared_statement_t, std);
   prepared_statement_object_handlers.free_obj = prepared_statement_free_obj;
+
+  duckdb_append_statement_class_entry = register_class_DuckDB_AppendStatement();
+  duckdb_append_statement_class_entry->create_object = append_statement_new;
+  append_statement_object_handlers.offset = XtOffsetOf(duckdb_append_statement_t, std);
+  append_statement_object_handlers.free_obj = append_statement_free_obj;
 
   duckdb_result_class_entry = register_class_DuckDB_Result();
   duckdb_result_class_entry->create_object = duckdb_result_new;
