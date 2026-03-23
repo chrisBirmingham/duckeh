@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 986b21ff6eac606ac053866bb1de9e4716e115bf */
+ * Stub hash: d7a4621730a7c39e528e7f2179474eedace808a5 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DuckDB_DuckDB___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, path, IS_STRING, 1, "null")
@@ -14,9 +14,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_DuckDB_prepare, 0, 1
 	ZEND_ARG_TYPE_INFO(0, query, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_DuckDB_append, 0, 1, DuckDB\\AppendStatement, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_DuckDB_append, 0, 1, DuckDB\\Appender, 0)
 	ZEND_ARG_TYPE_INFO(0, table, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, schema, IS_STRING, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, catalogue, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_DuckDB_DuckDB_sql arginfo_class_DuckDB_DuckDB_query
@@ -57,9 +58,17 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_PreparedStatement_ex
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, params, IS_ARRAY, 1, "null")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_DuckDB_AppendStatement_execute, 0, 1, DuckDB\\Result, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_Appender_appendRow, 0, 1, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, row, IS_ARRAY, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_Appender_appendRows, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, rows, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
+
+#define arginfo_class_DuckDB_Appender_flush arginfo_class_DuckDB_Result_print
+
+#define arginfo_class_DuckDB_Appender_clear arginfo_class_DuckDB_Result_print
 
 #define arginfo_class_DuckDB_Value_Timestamp_infinity arginfo_class_DuckDB_Result_columnCount
 
@@ -112,7 +121,10 @@ ZEND_METHOD(DuckDB_DataChunk, getVector);
 ZEND_METHOD(DuckDB_Vector, getData);
 ZEND_METHOD(DuckDB_PreparedStatement, bindParam);
 ZEND_METHOD(DuckDB_PreparedStatement, execute);
-ZEND_METHOD(DuckDB_AppendStatement, execute);
+ZEND_METHOD(DuckDB_Appender, appendRow);
+ZEND_METHOD(DuckDB_Appender, appendRows);
+ZEND_METHOD(DuckDB_Appender, flush);
+ZEND_METHOD(DuckDB_Appender, clear);
 ZEND_METHOD(DuckDB_Value_Timestamp, infinity);
 ZEND_METHOD(DuckDB_Value_Timestamp, getDate);
 ZEND_METHOD(DuckDB_Value_Timestamp, getTime);
@@ -166,8 +178,11 @@ static const zend_function_entry class_DuckDB_PreparedStatement_methods[] = {
 	ZEND_FE_END
 };
 
-static const zend_function_entry class_DuckDB_AppendStatement_methods[] = {
-	ZEND_ME(DuckDB_AppendStatement, execute, arginfo_class_DuckDB_AppendStatement_execute, ZEND_ACC_PUBLIC)
+static const zend_function_entry class_DuckDB_Appender_methods[] = {
+	ZEND_ME(DuckDB_Appender, appendRow, arginfo_class_DuckDB_Appender_appendRow, ZEND_ACC_PUBLIC)
+	ZEND_ME(DuckDB_Appender, appendRows, arginfo_class_DuckDB_Appender_appendRows, ZEND_ACC_PUBLIC)
+	ZEND_ME(DuckDB_Appender, flush, arginfo_class_DuckDB_Appender_flush, ZEND_ACC_PUBLIC)
+	ZEND_ME(DuckDB_Appender, clear, arginfo_class_DuckDB_Appender_clear, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
 
@@ -254,6 +269,21 @@ static zend_class_entry *register_class_DuckDB_QueryException(zend_class_entry *
 	return class_entry;
 }
 
+static zend_class_entry *register_class_DuckDB_AppendException(zend_class_entry *class_entry_DuckDB_DuckDBException)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "AppendException", NULL);
+#if (PHP_VERSION_ID >= 80400)
+	class_entry = zend_register_internal_class_with_flags(&ce, class_entry_DuckDB_DuckDBException, ZEND_ACC_NO_DYNAMIC_PROPERTIES);
+#else
+	class_entry = zend_register_internal_class_ex(&ce, class_entry_DuckDB_DuckDBException);
+	class_entry->ce_flags |= ZEND_ACC_NO_DYNAMIC_PROPERTIES;
+#endif
+
+	return class_entry;
+}
+
 static zend_class_entry *register_class_DuckDB_DuckDB(void)
 {
 	zend_class_entry ce, *class_entry;
@@ -329,11 +359,11 @@ static zend_class_entry *register_class_DuckDB_PreparedStatement(void)
 	return class_entry;
 }
 
-static zend_class_entry *register_class_DuckDB_AppendStatement(void)
+static zend_class_entry *register_class_DuckDB_Appender(void)
 {
 	zend_class_entry ce, *class_entry;
 
-	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "AppendStatement", class_DuckDB_AppendStatement_methods);
+	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "Appender", class_DuckDB_Appender_methods);
 #if (PHP_VERSION_ID >= 80400)
 	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_NOT_SERIALIZABLE);
 #else

@@ -23,10 +23,10 @@ typedef struct duckdb_prepared_statement_t {
   zend_object std;
 } duckdb_prepared_statement_t;
 
-typedef struct duckdb_append_statement_t {
-  duckdb_appender *stmt;
+typedef struct duckdb_appender_t {
+  duckdb_appender *appender;
   zend_object std;
-} duckdb_append_statement_t;
+} duckdb_appender_t;
 
 typedef struct duckdb_result_t {
   duckdb_data_chunk current_chunk;
@@ -81,11 +81,11 @@ static inline duckdb_prepared_statement_t *prepared_statement_t_from_obj(zend_ob
 }
 #define Z_PREPARED_STATEMENT_P(zv) prepared_statement_t_from_obj(Z_OBJ_P(zv))
 
-static inline duckdb_append_statement_t *append_statement_t_from_obj(zend_object *obj)
+static inline duckdb_appender_t *appender_t_from_obj(zend_object *obj)
 {
-  return (duckdb_append_statement_t *)((char *)(obj)-XtOffsetOf(duckdb_append_statement_t, std));
+  return (duckdb_appender_t *)((char *)(obj)-XtOffsetOf(duckdb_appender_t, std));
 }
-#define Z_APPEND_STATEMENT_P(zv) append_statement_t_from_obj(Z_OBJ_P(zv))
+#define Z_APPENDER_P(zv) appender_t_from_obj(Z_OBJ_P(zv))
 
 static inline duckdb_result_t *duckdb_result_t_from_obj(zend_object *obj)
 {

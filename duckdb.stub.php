@@ -22,6 +22,11 @@ namespace DuckDB {
     class QueryException extends DuckDBException {}
 
     /**
+     * @strict-properties
+     */
+    class AppendException extends DuckDBException {}
+
+    /**
      * @not-serializable
      */
     class DuckDB
@@ -42,9 +47,9 @@ namespace DuckDB {
         public function prepare(string $query): PreparedStatement {}
 
         /**
-         * @throws QueryException
+         * @throws AppendException
          */
-        public function append(string $table, ?string $schema = null): AppendStatement {}
+        public function append(string $table, ?string $schema = null, ?string $catalogue = null): Appender {}
 
         /**
          * @throws ConnectionException
@@ -113,14 +118,30 @@ namespace DuckDB {
     /**
      * @not-serializable
      */
-    class AppendStatement
+    class Appender
     {
         /**
-         * @throws QueryException
+         * @throws AppendException
+         * @throws \InvalidArgumentException
          */
-        public function execute(array $rows): void {}
+        public function appendRow(array $row): void {}
 
+        /**
+         * @param array[] $rows
+         * @throws AppendException
+         * @throws \InvalidArgumentException
+         */
+        public function appendRows(array $rows): void {}
+
+        /**
+         * @throws AppendException
+         */
         public function flush(): void {}
+
+        /**
+         * @throws AppendException
+         */
+        public function clear(): void {}
     }
 }
 
