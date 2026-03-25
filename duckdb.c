@@ -1217,13 +1217,11 @@ static zend_result append_row(duckdb_appender appender, zend_array *row)
 
     if (val == NULL) {
       zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value in row. Columns values must be scalar type");
-      duckdb_appender_clear(appender);
       return FAILURE;
     }
 
     if (duckdb_append_value(appender, val) == DuckDBError) {
       appender_error(appender);
-      duckdb_appender_clear(appender);
       return FAILURE;
     }
 
@@ -1232,7 +1230,6 @@ static zend_result append_row(duckdb_appender appender, zend_array *row)
 
   if (duckdb_appender_end_row(appender) == DuckDBError) {
     appender_error(appender);
-    duckdb_appender_clear(appender);
     return FAILURE;
   }
 
@@ -1254,26 +1251,6 @@ PHP_METHOD(DuckDB_Appender, appendRow)
   if (append_row(*append_t->appender, Z_ARR(*row)) == FAILURE) {
     RETURN_THROWS();
   }
-}
-
-PHP_METHOD(DuckDB_Appender, appendRows)
-{
-  zval *object = ZEND_THIS;
-  duckdb_appender_t *append_t;
-  zval *rows = NULL;
-  zval *value = NULL;
-
-  ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_ARRAY(rows)
-  ZEND_PARSE_PARAMETERS_END();
-
-  append_t = Z_APPENDER_P(object);
-
-  ZEND_HASH_FOREACH_VAL(Z_ARR(*rows), value) {
-    if (Z_TYPE(*value) == IS_ARRAY && append_row(*append_t->appender, Z_ARR(*value)) == FAILURE) {
-      RETURN_THROWS();
-    }
-  } ZEND_HASH_FOREACH_END();
 }
 
 PHP_METHOD(DuckDB_Appender, flush)

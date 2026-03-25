@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: d7a4621730a7c39e528e7f2179474eedace808a5 */
+ * Stub hash: 9237acbc03b8961d5d72a8a02c80df04610cd0a9 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DuckDB_DuckDB___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, path, IS_STRING, 1, "null")
@@ -62,10 +62,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_Appender_appendRow,
 	ZEND_ARG_TYPE_INFO(0, row, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_DuckDB_Appender_appendRows, 0, 1, IS_VOID, 0)
-	ZEND_ARG_TYPE_INFO(0, rows, IS_ARRAY, 0)
-ZEND_END_ARG_INFO()
-
 #define arginfo_class_DuckDB_Appender_flush arginfo_class_DuckDB_Result_print
 
 #define arginfo_class_DuckDB_Appender_clear arginfo_class_DuckDB_Result_print
@@ -122,7 +118,6 @@ ZEND_METHOD(DuckDB_Vector, getData);
 ZEND_METHOD(DuckDB_PreparedStatement, bindParam);
 ZEND_METHOD(DuckDB_PreparedStatement, execute);
 ZEND_METHOD(DuckDB_Appender, appendRow);
-ZEND_METHOD(DuckDB_Appender, appendRows);
 ZEND_METHOD(DuckDB_Appender, flush);
 ZEND_METHOD(DuckDB_Appender, clear);
 ZEND_METHOD(DuckDB_Value_Timestamp, infinity);
@@ -180,7 +175,6 @@ static const zend_function_entry class_DuckDB_PreparedStatement_methods[] = {
 
 static const zend_function_entry class_DuckDB_Appender_methods[] = {
 	ZEND_ME(DuckDB_Appender, appendRow, arginfo_class_DuckDB_Appender_appendRow, ZEND_ACC_PUBLIC)
-	ZEND_ME(DuckDB_Appender, appendRows, arginfo_class_DuckDB_Appender_appendRows, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_Appender, flush, arginfo_class_DuckDB_Appender_flush, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_Appender, clear, arginfo_class_DuckDB_Appender_clear, ZEND_ACC_PUBLIC)
 	ZEND_FE_END

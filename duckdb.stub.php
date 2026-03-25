@@ -127,13 +127,6 @@ namespace DuckDB {
         public function appendRow(array $row): void {}
 
         /**
-         * @param array[] $rows
-         * @throws AppendException
-         * @throws \InvalidArgumentException
-         */
-        public function appendRows(array $rows): void {}
-
-        /**
          * @throws AppendException
          */
         public function flush(): void {}

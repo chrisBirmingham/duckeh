@@ -14,10 +14,9 @@ $appender->flush();
 $db->query('SELECT * FROM people')->print();
 
 for ($i = 2; $i <= 10; $i++) {
-    $rows[] = [$i, 'Duck' . $i];
+    $appender->appendRow([$i, 'Duck' . $i]);
 }
 
-$appender->appendRows($rows);
 $appender->flush();
 
 $db->query('SELECT * FROM people')->print();

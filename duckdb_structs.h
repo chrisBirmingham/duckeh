@@ -2,45 +2,45 @@
 #include <zend_types.h>
 
 /* Structs */
-typedef struct duckdb_t {
+typedef struct {
   duckdb_database *database;
   duckdb_connection *connection;
   zend_object std;
 } duckdb_t;
 
-typedef struct duckdb_database_t {
+typedef struct {
   duckdb_database db;
   zend_object std;
 } duckdb_database_t;
 
-typedef struct duckdb_connection_t {
+typedef struct {
   duckdb_connection conn;
   zend_object std;
 } duckdb_connection_t;
 
-typedef struct duckdb_prepared_statement_t {
+typedef struct {
   duckdb_prepared_statement *stmt;
   zend_object std;
 } duckdb_prepared_statement_t;
 
-typedef struct duckdb_appender_t {
+typedef struct {
   duckdb_appender *appender;
   zend_object std;
 } duckdb_appender_t;
 
-typedef struct duckdb_result_t {
+typedef struct {
   duckdb_data_chunk current_chunk;
   idx_t current_row;
   duckdb_result *result;
   zend_object std;
 } duckdb_result_t;
 
-typedef struct duckdb_data_chunk_t {
+typedef struct {
   duckdb_data_chunk chunk;
   zend_object std;
 } duckdb_data_chunk_t;
 
-typedef struct duckdb_vector_t {
+typedef struct {
   duckdb_vector vector;
   duckdb_type type;
   duckdb_logical_type logical_type;
@@ -49,19 +49,19 @@ typedef struct duckdb_vector_t {
   zend_object std;
 } duckdb_vector_t;
 
-typedef struct duckdb_timestamp_t {
+typedef struct {
   duckdb_timestamp timestamp;
   zend_object std;
 } duckdb_timestamp_t;
 
-typedef struct duckdb_date_t {
+typedef struct {
   duckdb_date date;
   duckdb_date_struct date_struct;
   bool date_struct_initialised;
   zend_object std;
 } duckdb_date_t;
 
-typedef struct duckdb_time_t {
+typedef struct {
   duckdb_time time;
   duckdb_time_struct time_struct;
   bool time_struct_initialised;
