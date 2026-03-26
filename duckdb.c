@@ -1,5 +1,6 @@
 /* duckdb extension for PHP (c) 2025 Daniel Hernández-Marín */
 
+#include "zend_API.h"
 #define PHP_DUCKDB_POSITIVE_INFINITY 1
 #define PHP_DUCKDB_NEGATIVE_INFINITY -1
 #define PHP_DUCKDB_FINITE 0
@@ -1626,6 +1627,11 @@ PHP_METHOD(DuckDB_DataChunk, getVector)
     Z_PARAM_LONG(index)
   ZEND_PARSE_PARAMETERS_END();
 
+  if (index < 0) {
+    zend_argument_value_error(1, "must be greater than or equal to 0");
+    RETURN_THROWS();
+  }
+
   data_chunk_t = Z_DUCKDB_DATA_CHUNK_P(object);
 
   object_init_ex(return_value, duckdb_vector_class_entry);
@@ -1642,6 +1648,11 @@ PHP_METHOD(DuckDB_Vector, getData)
   ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_LONG(rowIndex)
   ZEND_PARSE_PARAMETERS_END();
+
+  if (rowIndex < 0) {
+    zend_argument_value_error(1, "must be greater than or equal to 0");
+    RETURN_THROWS();
+  }
 
   vector_t = Z_DUCKDB_VECTOR_P(object);
   get_data(vector_t, rowIndex, return_value);
