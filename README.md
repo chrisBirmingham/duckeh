@@ -1,150 +1,44 @@
-## DuckDB API for PHP
+# Duckeh - DuckDB for PHP
 
-A wrapper over DuckDB C API
+A PHP extension for the [DuckDB](https://duckdb.org/) API
+
+This is a fork of [Daniel Hernández Marín](https://github.com/dhernandez) original work found [here](https://github.com/satur-io/duckdb)
 
 > [!CAUTION]
-> This project is in an early development stage and there are no plans to make it stable/production ready for now. Nevertheless, any contribution will be welcome. Check also [satur-io/duckdb-php](https://github.com/satur-io/duckdb-php)
+> This project is in an early development stage and there are probably a tonne of bugs. Nevertheless, any contribution will be welcome.
 
 ## Prerequisites
 
-Install the DuckDB C library (`libduckdb`) into a standard system path before using PIE.
-
-<details>
-<summary>Linux</summary>
-
-Official downloads: https://duckdb.org/install/?platform=linux&environment=c
-
-#### x86_64 (amd64)
-
-```sh
-tmp="$(mktemp -d)"
-curl -L "https://install.duckdb.org/v1.4.4/libduckdb-linux-amd64.zip" -o "$tmp/libduckdb.zip"
-unzip -q "$tmp/libduckdb.zip" -d "$tmp"
-sudo mkdir -p /usr/local/include /usr/local/lib
-sudo install -m 644 "$tmp/duckdb.h" /usr/local/include/duckdb.h
-sudo install -m 755 "$tmp/libduckdb.so" /usr/local/lib/libduckdb.so
-sudo ldconfig
-```
-
-#### arm64 (aarch64)
-
-```sh
-tmp="$(mktemp -d)"
-curl -L "https://install.duckdb.org/v1.4.4/libduckdb-linux-arm64.zip" -o "$tmp/libduckdb.zip"
-unzip -q "$tmp/libduckdb.zip" -d "$tmp"
-sudo mkdir -p /usr/local/include /usr/local/lib
-sudo install -m 644 "$tmp/duckdb.h" /usr/local/include/duckdb.h
-sudo install -m 755 "$tmp/libduckdb.so" /usr/local/lib/libduckdb.so
-sudo ldconfig
-```
-
-</details>
-
-<details>
-<summary>macOS</summary>
-
-Official downloads: https://duckdb.org/install/?platform=macos&environment=c
-
-```sh
-tmp="$(mktemp -d)"
-curl -L "https://install.duckdb.org/v1.4.4/libduckdb-osx-universal.zip" -o "$tmp/libduckdb.zip"
-unzip -q "$tmp/libduckdb.zip" -d "$tmp"
-sudo mkdir -p /usr/local/include /usr/local/lib
-sudo install -m 644 "$tmp/duckdb.h" /usr/local/include/duckdb.h
-sudo install -m 755 "$tmp/libduckdb.dylib" /usr/local/lib/libduckdb.dylib
-```
-
-</details>
-
-<details>
-<summary>Windows</summary>
-
-Official downloads: https://duckdb.org/install/?platform=windows&environment=c
-
-Open PowerShell as Administrator.
-
-#### x86_64 (amd64)
-
-```powershell
-$vc = "$env:TEMP\vc_redist.x64.exe"
-Invoke-WebRequest "https://aka.ms/vc14/vc_redist.x64.exe" -OutFile $vc
-Start-Process -Wait -FilePath $vc -ArgumentList "/install","/passive","/norestart"
-
-$version = "v1.4.4"
-$zip = "libduckdb-windows-amd64.zip"
-$dest = "$env:TEMP\duckdb"
-New-Item -ItemType Directory -Force $dest | Out-Null
-Invoke-WebRequest "https://install.duckdb.org/$version/$zip" -OutFile "$dest\libduckdb.zip"
-Expand-Archive "$dest\libduckdb.zip" -DestinationPath $dest -Force
-$target = "C:\Program Files\DuckDB"
-New-Item -ItemType Directory -Force $target | Out-Null
-Copy-Item "$dest\*" $target -Recurse -Force
-$system = "C:\Windows"
-Copy-Item "$dest\duckdb.dll" "$system\duckdb.dll" -Force
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$target", "User")
-$env:Path += ";$target"
-```
-
-#### arm64
-
-```powershell
-$vc = "$env:TEMP\vc_redist.arm64.exe"
-Invoke-WebRequest "https://aka.ms/vc14/vc_redist.arm64.exe" -OutFile $vc
-Start-Process -Wait -FilePath $vc -ArgumentList "/install","/passive","/norestart"
-
-$version = "v1.4.4"
-$zip = "libduckdb-windows-arm64.zip"
-$dest = "$env:TEMP\duckdb"
-New-Item -ItemType Directory -Force $dest | Out-Null
-Invoke-WebRequest "https://install.duckdb.org/$version/$zip" -OutFile "$dest\libduckdb.zip"
-Expand-Archive "$dest\libduckdb.zip" -DestinationPath $dest -Force
-$target = "C:\Program Files\DuckDB"
-New-Item -ItemType Directory -Force $target | Out-Null
-Copy-Item "$dest\*" $target -Recurse -Force
-$system = "C:\Windows"
-Copy-Item "$dest\duckdb.dll" "$system\duckdb.dll" -Force
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$target", "User")
-$env:Path += ";$target"
-```
-
-</details>
+* libduckdb 1.5.0 and above
+* PHP 8.1 and above
 
 ## Installation (PIE)
 
-PIE installs PHP extensions published on Packagist. Once this package is published, install it with:
+You can install this extension using [PIE](https://github.com/php/pie):
 
 ```sh
-pie install saturio/duckdb
+pie install intermaterium/duckeh
 ```
 
-If PIE cannot enable the extension automatically, add this to your INI:
+## Installation (Build from source)
+
+You can also use the old phpize method to install the extension
+
+```sh
+git clone --recursive --depth=1 https://github.com/chrisBirmingham/duckeh.git
+cd duckeh
+phpize
+./configure
+make
+make install
+```
+
+## Configuration
+
+Then enable the extension, add this to your PHP INI file
 
 ```ini
 extension=duckdb
-```
-
-## Library in a non-standard path (advanced)
-
-If you installed `libduckdb` outside the standard system paths, pass the prefix that contains `include/duckdb.h` and `lib/libduckdb.*`:
-
-```sh
-pie install saturio/duckdb --with-duckdb-dir=/path/to/duckdb
-```
-
-You can see available configure options with:
-
-```sh
-pie info saturio/duckdb
-```
-
-PIE lists the available configure options for an extension in `pie info`. Use those options with `pie install`.
-
-If `pie` reports that `--with-duckdb-dir` does not exist, install a version that includes this option and confirm it appears in `pie info` before retrying.
-
-As a fallback, you can also pass include and library paths via environment variables:
-
-```sh
-CPPFLAGS="-I/path/to/duckdb/include" LDFLAGS="-L/path/to/duckdb/lib" pie install saturio/duckdb
 ```
 
 ## Usage
@@ -157,7 +51,7 @@ A new in-memory database can be created like so:
 $db = new \DuckDB\DuckDB();
 ```
 
-You can attach to a store by specifying a path to the DuckDB class.
+You can attach to a store by specifying a path like so.
 
 ```php
 $db = new \DuckDB\DuckDB(__DIR__ '/Star_Trek-Season_1.csv');
@@ -184,6 +78,8 @@ Prepared statements are created via the `prepare` method:
 
 ```php
 $db = new \DuckDB\DuckDB();
+
+# Named (`$1`, `$quack`) and unnamed (`?`) parameters are supported.
 $stmt = $db->prepare('SELECT * FROM duck where quack = $1');
 
 # Bind a variable to the parameter
@@ -193,7 +89,8 @@ $stmt->bindParam(1, "honk");
 $res = $stmt->execute();
 ```
 
-The `execute` method returns a `Result` class or throws a `QueryException` if the query fails
+On success, a `Result` class is returned otherwise a `QueryException` is thrown if the query fails. If a bound parameter 
+doesn't exist or the value provided to the bound parameter isn't a scalar value, an `InvalidArgumentException` is thrown
 
 ### Results
 
@@ -202,7 +99,7 @@ The result class supports two forms for getting the queried data, the higher lev
 #### Fetch methods
 
 These methods closely map to the pdo statement methods of the same name. The `fetch` method will keep on returning data until 
-it reaches the end of the returned data where it will return null. The `fetchAll` method will collect all the data and
+it reaches the end of the returned data where it will return false. The `fetchAll` method will collect all the data and
 return it as one big array. 
 
 Both methods return each row as an associative array with the column name as the key and the values are mapped directly 
@@ -226,8 +123,9 @@ foreach ($res as $row) {
 
 ### Chunk method
 
-This extension also supports duckdb's lower level chunk and vector datatypes. You can select a chunk via the `fetchChunk`
-method. This method will keep on returning chunks until all data is exhausted. You then process each chunk like so: 
+This extension also supports duckdb's lower level chunk and vector datatypes. Chunks represent a horizontal slice of  
+the resulting query, and they hold a number of vectors. You can retrieve a chunk via the `fetchChunk`
+method, this method will keep on returning chunks until all data is exhausted. You can then process a chunk like so:
 
 ```php
 $duckDB = new \DuckDB\DuckDB();
@@ -256,3 +154,37 @@ while ($dataChunk = $result->fetchChunk()) {
     }
 }
 ```
+
+### Appender
+
+This extension provides an interface to the Appender feature provided by duckdb. The duckdb Appender is best suited for 
+fast data loading opposed to inserting multiple rows via an INSERT query.
+
+You can create an appender via the `append` method:
+
+```php
+$db = new \DuckDB\DuckDB();
+$appender = $db->append('table');
+```
+
+You can then insert a row `appendRow` method:
+
+```php
+$appender->appendRow([1, 'Duck']);
+
+$db->query('SELECT * FROM people')->print();
+
+for ($i = 2; $i <= 10; $i++) {
+    $appender->appendRow([$i, 'Duck' . $i]);
+}
+```
+
+Rows aren't automatically appended to the table. You can explicitly flush the rows to the table via the `flush` method,
+otherwise the rows will either be flushed when an internal buffer is filled up or when the appender is cleaned up via 
+the garbage collector.
+
+If you want to clear the appended rows, you can call the `clear` method.
+
+> [!CAUTION]
+> Care should be taken when inserting rows into the appender. Should an exception be thrown because of type mismatches,
+> the appender can be left in an incomplete state. In such a situation, it's best that you call the clear method

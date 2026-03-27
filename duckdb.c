@@ -1951,8 +1951,9 @@ PHP_MINIT_FUNCTION(duckdb)
 PHP_MINFO_FUNCTION(duckdb)
 {
   php_info_print_table_start();
-  php_info_print_table_row(2, "duckdb support", "enabled");
-  php_info_print_table_row(2, "libduckdb version", duckdb_library_version());
+  php_info_print_table_row(2, "Duckdb Support", "enabled");
+  php_info_print_table_row(2, "Extension Version", PHP_DUCKDB_VERSION);
+  php_info_print_table_row(2, "libduckdb Version", duckdb_library_version());
   php_info_print_table_end();
 }
 
