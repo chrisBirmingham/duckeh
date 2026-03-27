@@ -17,10 +17,8 @@
         "php": ">=8.1",
         "ext-json": "*"
     },
-    "provide": {
-        "ext-duckdb": "*"
-    },
     "php-ext": {
+        "extension-name": "duckdb",
         "configure-options": [
             {
                 "name": "enable-duckdb",
