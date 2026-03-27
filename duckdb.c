@@ -1,6 +1,5 @@
 /* duckdb extension for PHP (c) 2025 Daniel Hernández-Marín */
 
-#include "zend_API.h"
 #define PHP_DUCKDB_POSITIVE_INFINITY 1
 #define PHP_DUCKDB_NEGATIVE_INFINITY -1
 #define PHP_DUCKDB_FINITE 0
