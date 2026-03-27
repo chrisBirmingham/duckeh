@@ -11,9 +11,9 @@ $result = $duckDB->query("SELECT CAST('12.5' AS DECIMAL(4,1)) AS d, BLOB 'abcd' 
 $columns = $result->columnCount();
 while ($dataChunk = $result->fetchChunk()) {
     $rows = $dataChunk->getSize();
-    for ($i=0; $i<$columns; $i++) {
+    for ($i = 0; $i < $columns; $i++) {
         $vector = $dataChunk->getVector($i);
-        for ($r=0; $r<$rows; $r++) {
+        for ($r = 0; $r < $rows; $r++) {
             $data = $vector->getData($r);
             if ($data instanceof \DuckDB\Value\Time) {
                 echo $data, "\n";

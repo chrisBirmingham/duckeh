@@ -15,17 +15,7 @@ var_dump($result);
 
 ?>
 --EXPECT--
-object(DuckDB\Result)#2 (1) {
-  ["{duckdb_result}"]=>
-  array(1) {
-    ["initialised"]=>
-    bool(true)
-  }
+object(DuckDB\Result)#2 (0) {
 }
-object(DuckDB\Result)#3 (1) {
-  ["{duckdb_result}"]=>
-  array(1) {
-    ["initialised"]=>
-    bool(true)
-  }
+object(DuckDB\Result)#3 (0) {
 }

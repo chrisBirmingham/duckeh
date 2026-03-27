@@ -1,5 +1,5 @@
 --TEST--
-Prepared statement
+Prepared statement params in execute
 --EXTENSIONS--
 duckdb
 --FILE--
@@ -11,23 +11,21 @@ $duckDB->query("INSERT INTO test_data VALUES (3, true, 1.1), (5, true, 1.2), (3,
 
 $stmt = $duckDB->prepare("SELECT * FROM test_data WHERE b = $1");
 
-$stmt->bindParam(1, true);
-$result = $stmt->execute();
+$result = $stmt->execute([1 => true]);
 
 $columns = $result->columnCount();
 while ($dataChunk = $result->fetchChunk()) {
     $rows = $dataChunk->getSize();
-    for ($i=0; $i<$columns; $i++) {
+    for ($i = 0; $i < $columns; $i++) {
         $vector = $dataChunk->getVector($i);
-        for ($r=0; $r<$rows; $r++) {
+        for ($r = 0; $r < $rows; $r++) {
             $data = $vector->getData($r);
             var_dump($data);
         }
     }
 }
 
-$stmt->bindParam(1, false);
-$result = $stmt->execute();
+$result = $stmt->execute([1 => false]);
 
 $columns = $result->columnCount();
 while ($dataChunk = $result->fetchChunk()) {
@@ -42,15 +40,14 @@ while ($dataChunk = $result->fetchChunk()) {
 }
 
 $stmt = $duckDB->prepare('SELECT * FROM test_data WHERE i = $index');
-$stmt->bindParam('index', 5);
-$result = $stmt->execute();
+$result = $stmt->execute(['index' => 5]);
 
 $columns = $result->columnCount();
 while ($dataChunk = $result->fetchChunk()) {
     $rows = $dataChunk->getSize();
-    for ($i = 0; $i < $columns; $i++) {
+    for ($i=0; $i<$columns; $i++) {
         $vector = $dataChunk->getVector($i);
-        for ($r = 0; $r < $rows; $r++) {
+        for ($r=0; $r<$rows; $r++) {
             $data = $vector->getData($r);
             var_dump($data);
         }

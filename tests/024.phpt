@@ -14,4 +14,4 @@ var_dump($result->fetchChunk());
 ?>
 --EXPECT--
 int(42)
-NULL
+bool(false)

@@ -1,21 +1,24 @@
 {
-    "name": "saturio/duckdb",
+    "name": "intermaterium/duckeh",
     "description": "PHP extension for DuckDB",
     "type": "php-ext",
     "license": "MIT",
     "authors": [
+        {
+            "name": "Christopher Birmingham",
+            "email": "chris.birmingham@hotmail.co.uk"
+        },
         {
             "name": "Daniel Hernández-Marín",
             "email": "dani@satur.io"
         }
     ],
     "require": {
-        "php": ">=8.1"
-    },
-    "provide": {
-        "ext-duckdb": "*"
+        "php": ">=8.1",
+        "ext-json": "*"
     },
     "php-ext": {
+        "extension-name": "duckdb",
         "configure-options": [
             {
                 "name": "enable-duckdb",

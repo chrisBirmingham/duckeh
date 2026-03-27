@@ -11,9 +11,9 @@ $result = $duckDB->query("SELECT '1992-09-20'::DATE;");
 $columns = $result->columnCount();
 while ($dataChunk = $result->fetchChunk()) {
     $rows = $dataChunk->getSize();
-    for ($i=0; $i<$columns; $i++) {
+    for ($i = 0; $i < $columns; $i++) {
         $vector = $dataChunk->getVector($i);
-        for ($r=0; $r<$rows; $r++) {
+        for ($r = 0; $r < $rows; $r++) {
             $data = $vector->getData($r);
             printf("Class: %s\n", get_class($data));
             printf("Year: %s\n", $data->getYear());

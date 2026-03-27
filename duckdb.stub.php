@@ -2,53 +2,145 @@
 
 /**
  * @generate-class-entries
+ * @generate-legacy-arginfo 80100
  */
 
 namespace DuckDB {
-    /** @not-serializable */
-    class DuckDB {
-        public function __construct(?string $path = null) {}
-
-        public function query(string $query): Result|bool {}
-        public function prepare(string $query): PreparedStatement {}
-        public static function sql(string $query): Result|bool {}
-    }
-
-    /** @not-serializable */
-    class Result {
-        public function columnCount(): int {}
-        public function fetchChunk(): ?DataChunk {}
-        public function print(): void {}
-    }
-
-    /** @not-serializable */
-    class DataChunk {
-        public function getSize(): int {}
-        public function getVector(int $columnIndex): Vector {}
-    }
-
-    /** @not-serializable */
-    class Vector {
-        public function getData(int $rowIndex): mixed {}
-    }
-
-    /** @not-serializable */
-    class PreparedStatement {
-        // Only string allowed for now. TODO: add other types
-        public function bindParam(int $index, string $param): bool {}
-        public function execute(): Result {}
-    }
+    /**
+     * @strict-properties
+     */
+    class DuckDBException extends \Exception {}
 
     /**
      * @strict-properties
      */
-    class Exception extends \Exception {}
+    class ConnectionException extends DuckDBException {}
+
+    /**
+     * @strict-properties
+     */
+    class QueryException extends DuckDBException {}
+
+    /**
+     * @strict-properties
+     */
+    class AppendException extends DuckDBException {}
+
+    /**
+     * @not-serializable
+     */
+    class DuckDB
+    {
+        /**
+         * @throws ConnectionException
+         */
+        public function __construct(?string $path = null, ?array $options = null) {}
+
+        /**
+         * @throws QueryException
+         */
+        public function query(string $query): Result {}
+
+        /**
+         * @throws QueryException
+         */
+        public function prepare(string $query): PreparedStatement {}
+
+        /**
+         * @throws AppendException
+         */
+        public function append(string $table, ?string $schema = null, ?string $catalogue = null): Appender {}
+
+        /**
+         * @throws ConnectionException
+         * @throws QueryException
+         */
+        public static function sql(string $query): Result {}
+    }
+
+    /**
+     * @not-serializable
+     */
+    class Result
+    {
+        public function columnCount(): int {}
+
+        public function rowCount(): int {}
+
+        public function fetchChunk(): DataChunk|false {}
+
+        public function print(): void {}
+
+        public function fetch(): array|false {}
+
+        public function fetchAll(): array {}
+    }
+
+    /**
+     * @not-serializable
+     */
+    class DataChunk
+    {
+        public function getSize(): int {}
+
+        public function getVector(int $columnIndex): Vector {}
+    }
+
+    /**
+     * @not-serializable
+     */
+    class Vector
+    {
+        public function getData(int $rowIndex): mixed {}
+    }
+
+    /**
+     * @not-serializable
+     */
+    class PreparedStatement
+    {
+
+        /**
+         * @throws \OutOfBoundsException
+         * @throws \InvalidArgumentException
+         * @throws QueryException
+         */
+        public function bindParam(string|int $param, mixed $val): void {}
+
+        /**
+         * @throws \OutOfBoundsException
+         * @throws \InvalidArgumentException
+         * @throws QueryException
+         */
+        public function execute(?array $params = null): Result {}
+    }
+
+    /**
+     * @not-serializable
+     */
+    class Appender
+    {
+        /**
+         * @throws AppendException
+         * @throws \InvalidArgumentException
+         */
+        public function appendRow(array $row): void {}
+
+        /**
+         * @throws AppendException
+         */
+        public function flush(): void {}
+
+        /**
+         * @throws AppendException
+         */
+        public function clear(): void {}
+    }
 }
 
 /**
  * @generate-class-entries
  */
-
 namespace DuckDB\Value {
     /**
      * @var int
@@ -68,35 +160,53 @@ namespace DuckDB\Value {
      */
     const FINITE = 0;
 
-    /** @not-serializable */
-    class Timestamp {
+    /**
+     * @not-serializable
+     */
+    class Timestamp implements \Stringable
+    {
         public function infinity(): int {}
+
         public function getDate(): Date {}
+
         public function getTime(): Time {}
+
         public function __toString(): string {}
     }
 
-    /** @not-serializable */
-    class Date {
+    /**
+     * @not-serializable
+     */
+    class Date implements \Stringable
+    {
         public function infinity(): int {}
+
         public function getYear(): int {}
+
         public function getMonth(): int {}
+
         public function getDay(): int {}
+
         public function getDays(): int {}
+
         public function __toString(): string {}
     }
 
-    /** @not-serializable */
-    class Time {
+    /**
+     * @not-serializable
+     */
+    class Time implements \Stringable
+    {
         public function getTotalMicroseconds(): int {}
+
         public function getHour(): int {}
+
         public function getMinutes(): int {}
+
         public function getSeconds(): int {}
+
         public function getMicroseconds(): int {}
+
         public function __toString(): string {}
     }
-}
-
-namespace {
-    function duckdb_info(): void {}
 }
