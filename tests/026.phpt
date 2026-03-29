@@ -4,7 +4,8 @@ Test Result print encodes arrays as JSON
 duckdb
 --FILE--
 <?php
-$result = \DuckDB\DuckDB::sql("SELECT * FROM test_all_types();");
+$db = new \DuckDB\DuckDB();
+$result = $db->query("SELECT * FROM test_all_types();");
 $result->print();
 ?>
 --EXPECT--

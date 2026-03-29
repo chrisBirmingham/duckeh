@@ -50,12 +50,6 @@ namespace DuckDB {
          * @throws AppendException
          */
         public function append(string $table, ?string $schema = null, ?string $catalogue = null): Appender {}
-
-        /**
-         * @throws ConnectionException
-         * @throws QueryException
-         */
-        public static function sql(string $query): Result {}
     }
 
     /**

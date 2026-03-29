@@ -4,7 +4,9 @@ Test Result print
 duckdb
 --FILE--
 <?php
-$result = \DuckDB\DuckDB::sql("SELECT 1 AS a, 'duck' AS b");
+
+$db = new \DuckDB\DuckDB();
+$result = $db->query("SELECT 1 AS a, 'duck' AS b");
 $result->print();
 ?>
 --EXPECT--
