@@ -1,3 +1,7 @@
+# 0.3.0
+
+* Replaced deprecated `duckdb_row_count` with `duckdb_rows_changed`. `rowCount` should now be closer to PDO's `rowCount` method
+
 # 0.2.0
 
 * Removed the sql method

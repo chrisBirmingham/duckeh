@@ -1269,7 +1269,7 @@ PHP_METHOD(DuckDB_Result, rowCount)
   ZEND_PARSE_PARAMETERS_NONE();
 
   result_t = Z_DUCKDB_RESULT_P(object);
-  RETURN_LONG(duckdb_row_count(result_t->result));
+  RETURN_LONG(duckdb_rows_changed(result_t->result));
 }
 
 PHP_METHOD(DuckDB_Result, columnCount)
