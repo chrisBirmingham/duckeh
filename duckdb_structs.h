@@ -3,35 +3,25 @@
 
 /* Structs */
 typedef struct {
-  duckdb_database *database;
-  duckdb_connection *connection;
+  duckdb_database database;
+  duckdb_connection connection;
   zend_object std;
 } duckdb_t;
 
 typedef struct {
-  duckdb_database db;
-  zend_object std;
-} duckdb_database_t;
-
-typedef struct {
-  duckdb_connection conn;
-  zend_object std;
-} duckdb_connection_t;
-
-typedef struct {
-  duckdb_prepared_statement *stmt;
+  duckdb_prepared_statement stmt;
   zend_object std;
 } duckdb_prepared_statement_t;
 
 typedef struct {
-  duckdb_appender *appender;
+  duckdb_appender appender;
   zend_object std;
 } duckdb_appender_t;
 
 typedef struct {
   duckdb_data_chunk current_chunk;
   idx_t current_row;
-  duckdb_result *result;
+  duckdb_result result;
   zend_object std;
 } duckdb_result_t;
 
