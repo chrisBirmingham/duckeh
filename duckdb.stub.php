@@ -63,11 +63,6 @@ namespace DuckDB {
 
         public function fetchChunk(): DataChunk|false {}
 
-        /**
-         * @deprecated
-         */
-        public function print(): void {}
-
         public function fetch(): array|false {}
 
         public function fetchAll(): array {}

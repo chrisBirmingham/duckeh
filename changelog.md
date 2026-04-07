@@ -1,3 +1,7 @@
+# 0.5.0
+
+* Remove the print method from the Result object
+
 # 0.4.0
 
 * Disallow creating classes via their constructors
