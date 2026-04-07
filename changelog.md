@@ -1,3 +1,8 @@
+# 0.4.0
+
+* Disallow creating classes via their constructors
+* Deprecate the print method
+
 # 0.3.0
 
 * Replaced deprecated `duckdb_row_count` with `duckdb_rows_changed`. `rowCount` should now be closer to PDO's `rowCount` method
