@@ -15,10 +15,9 @@ for ($i = 0; $i < 10; $i++) {
 $appender->clear();
 $appender->flush();
 
-$db->query('SELECT * FROM people')->print();
+foreach ($db->query('SELECT * FROM people')->fetchAll() as $row) {
+    echo "{$row['id']},{$row['name']}\n";
+}
 
 ?>
 --EXPECT--
--------------
-| id | name |
--------------
