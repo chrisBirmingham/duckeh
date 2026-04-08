@@ -46,8 +46,6 @@ typedef struct {
 
 typedef struct {
   duckdb_date date;
-  duckdb_date_struct date_struct;
-  bool date_struct_initialised;
   zend_object std;
 } duckdb_date_t;
 

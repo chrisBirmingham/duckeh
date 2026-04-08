@@ -29,8 +29,6 @@
 #endif
 
 static zend_object_handlers duckdb_object_handlers;
-static zend_object_handlers database_object_handlers;
-static zend_object_handlers connection_object_handlers;
 static zend_object_handlers prepared_statement_object_handlers;
 static zend_object_handlers append_statement_object_handlers;
 static zend_object_handlers result_object_handlers;
@@ -41,8 +39,6 @@ static zend_object_handlers date_object_handlers;
 static zend_object_handlers time_object_handlers;
 
 static zend_class_entry *duckdb_class_entry = NULL;
-static zend_class_entry *duckdb_database_class_entry = NULL;
-static zend_class_entry *duckdb_connection_class_entry = NULL;
 static zend_class_entry *duckdb_prepared_statement_class_entry = NULL;
 static zend_class_entry *duckdb_appender_class_entry = NULL;
 static zend_class_entry *duckdb_result_class_entry = NULL;
@@ -1060,7 +1056,6 @@ PHP_METHOD(DuckDB_Appender, flush)
 {
   zval *object = ZEND_THIS;
   duckdb_appender_t *append_t;
-  zval *row = NULL;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
@@ -1076,7 +1071,6 @@ PHP_METHOD(DuckDB_Appender, clear)
 {
   zval *object = ZEND_THIS;
   duckdb_appender_t *append_t;
-  zval *row = NULL;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
@@ -1116,26 +1110,30 @@ static zend_function *duckdb_result_constructor(zend_object *obj)
   return NULL;
 }
 
-PHP_METHOD(DuckDB_Result, rowCount)
+static void result_get_prop(INTERNAL_FUNCTION_PARAMETERS, char type)
 {
   zval *object = ZEND_THIS;
   duckdb_result_t *result_t;
+  zend_long prop = 0;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
   result_t = Z_DUCKDB_RESULT_P(object);
-  RETURN_LONG(duckdb_rows_changed(&result_t->result));
+
+  prop = (type == 'r')
+    ? duckdb_rows_changed(&result_t->result)
+    : duckdb_column_count(&result_t->result);
+  RETURN_LONG(prop);
+}
+
+PHP_METHOD(DuckDB_Result, rowCount)
+{
+  result_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'r');
 }
 
 PHP_METHOD(DuckDB_Result, columnCount)
 {
-  zval *object = ZEND_THIS;
-  duckdb_result_t *result_t;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  result_t = Z_DUCKDB_RESULT_P(object);
-  RETURN_LONG(duckdb_column_count(&result_t->result));
+  result_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'c');
 }
 
 PHP_METHOD(DuckDB_Result, fetchChunk)
@@ -1149,8 +1147,7 @@ PHP_METHOD(DuckDB_Result, fetchChunk)
 
   result_t = Z_DUCKDB_RESULT_P(object);
 
-  chunk = duckdb_fetch_chunk(result_t->result);
-  if (!chunk) {
+  if ((chunk = duckdb_fetch_chunk(result_t->result)) == NULL) {
     RETURN_FALSE;
   }
 
@@ -1373,7 +1370,7 @@ PHP_METHOD(DuckDB_Value_Timestamp, infinity)
     RETURN_LONG(PHP_DUCKDB_FINITE);
   }
 
-  if ((&timestamp_t->timestamp)->micros > 0) {
+  if (timestamp_t->timestamp.micros > 0) {
     RETURN_LONG(PHP_DUCKDB_POSITIVE_INFINITY);
   }
 
@@ -1460,77 +1457,60 @@ PHP_METHOD(DuckDB_Value_Date, infinity)
     RETURN_LONG(PHP_DUCKDB_FINITE);
   }
 
-  if (*&(&date_t->date)->days > 0) {
+  if (date_t->date.days > 0) {
     RETURN_LONG(PHP_DUCKDB_POSITIVE_INFINITY);
   }
 
   RETURN_LONG(PHP_DUCKDB_NEGATIVE_INFINITY);
 }
 
-static duckdb_date_struct get_date_struct_from_date(duckdb_date_t *date)
+static void date_get_prop(INTERNAL_FUNCTION_PARAMETERS, char type)
 {
-  if (date->date_struct_initialised != true) {
-    date->date_struct = duckdb_from_date(date->date);
-    date->date_struct_initialised = true;
+  zval *object = ZEND_THIS;
+  duckdb_date_t *date_t;
+  duckdb_date_struct date;
+  long prop = 0;
+
+  ZEND_PARSE_PARAMETERS_NONE();
+
+  date_t = Z_DUCKDB_DATE_P(object);
+  date = duckdb_from_date(date_t->date);
+
+  switch (type) {
+    case 'y':
+      prop = date.year;
+      break;
+    case 'm':
+      prop = date.month;
+      break;
+    case 'd':
+      prop = date.day;
+      break;
+    case 'D':
+      prop = date_t->date.days;
   }
-  return date->date_struct;
+
+  RETURN_LONG(prop);
 }
 
 PHP_METHOD(DuckDB_Value_Date, getYear)
 {
-  zval *object = ZEND_THIS;
-  duckdb_date_t *date_t;
-  duckdb_date_struct date_struct;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  date_t = Z_DUCKDB_DATE_P(object);
-
-  date_struct = get_date_struct_from_date(date_t);
-
-  RETURN_LONG(date_struct.year);
+  date_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'y');
 }
 
 PHP_METHOD(DuckDB_Value_Date, getMonth)
 {
-  zval *object = ZEND_THIS;
-  duckdb_date_t *date_t;
-  duckdb_date_struct date_struct;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  date_t = Z_DUCKDB_DATE_P(object);
-
-  date_struct = get_date_struct_from_date(date_t);
-
-  RETURN_LONG(date_struct.month);
+  date_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'm');
 }
 
 PHP_METHOD(DuckDB_Value_Date, getDay)
 {
-  zval *object = ZEND_THIS;
-  duckdb_date_t *date_t;
-  duckdb_date_struct date_struct;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  date_t = Z_DUCKDB_DATE_P(object);
-
-  date_struct = get_date_struct_from_date(date_t);
-
-  RETURN_LONG(date_struct.day);
+  date_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'd');
 }
 
 PHP_METHOD(DuckDB_Value_Date, getDays)
 {
-  zval *object = ZEND_THIS;
-  duckdb_date_t *date_t;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  date_t = Z_DUCKDB_DATE_P(object);
-
-  RETURN_LONG((&date_t->date)->days);
+  date_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'D');
 }
 
 PHP_METHOD(DuckDB_Value_Date, __toString)
@@ -1568,66 +1548,60 @@ static zend_function *duckdb_time_constructor(zend_object *obj)
   return NULL;
 }
 
-PHP_METHOD(DuckDB_Value_Time, getHour)
+static void time_get_prop(INTERNAL_FUNCTION_PARAMETERS, char type)
 {
   zval *object = ZEND_THIS;
   duckdb_time_t *time_t;
+  zend_long prop = 0;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
   time_t = Z_DUCKDB_TIME_P(object);
 
-  RETURN_LONG(time_t->time.hour);
+  switch (type) {
+    case 'h':
+      prop = time_t->time.hour;
+      break;
+    case 'm':
+      prop = time_t->time.min;
+      break;
+    case 's':
+      prop = time_t->time.sec;
+      break;
+    case 'i':
+      prop = time_t->time.micros;
+      break;
+    case 'I':
+      prop = duckdb_to_time(time_t->time).micros;
+  }
+
+  RETURN_LONG(prop);
+}
+
+
+PHP_METHOD(DuckDB_Value_Time, getHour)
+{
+  time_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'h');
 }
 
 PHP_METHOD(DuckDB_Value_Time, getMinutes)
 {
-  zval *object = ZEND_THIS;
-  duckdb_time_t *time_t;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  time_t = Z_DUCKDB_TIME_P(object);
-
-  RETURN_LONG(time_t->time.min);
+  time_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'm');
 }
 
 PHP_METHOD(DuckDB_Value_Time, getSeconds)
 {
-  zval *object = ZEND_THIS;
-  duckdb_time_t *time_t;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  time_t = Z_DUCKDB_TIME_P(object);
-
-  RETURN_LONG(time_t->time.sec);
+  time_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 's');
 }
 
 PHP_METHOD(DuckDB_Value_Time, getMicroseconds)
 {
-  zval *object = ZEND_THIS;
-  duckdb_time_t *time_t;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  time_t = Z_DUCKDB_TIME_P(object);
-
-  RETURN_LONG(time_t->time.micros);
+  time_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'i');
 }
 
 PHP_METHOD(DuckDB_Value_Time, getTotalMicroseconds)
 {
-  zval *object = ZEND_THIS;
-  duckdb_time_t *time_t;
-  duckdb_time time;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  time_t = Z_DUCKDB_TIME_P(object);
-  time = duckdb_to_time(time_t->time);
-
-  RETURN_LONG(time.micros);
+  time_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'I');
 }
 
 PHP_METHOD(DuckDB_Value_Time, __toString)
@@ -1642,7 +1616,7 @@ PHP_METHOD(DuckDB_Value_Time, __toString)
   time_t = Z_DUCKDB_TIME_P(object);
   time = time_t->time;
 
-  str = zend_strpprintf(0, "%02d:%02d:%02d.%06d", time.hour, time.min, time.sec, time.micros);
+  str = zend_strpprintf(0, "%02d:%02d:%02d.%d", time.hour, time.min, time.sec, time.micros);
   RETURN_STR(str);
 }
 

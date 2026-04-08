@@ -1,3 +1,8 @@
+# 0.5.1
+
+* Use `INTERNAL_FUNCTION_PARAM_PASSTHRU` to reduce code duplication
+* Additional code cleanup
+
 # 0.5.0
 
 * Remove the print method from the Result object
