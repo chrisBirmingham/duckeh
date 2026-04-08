@@ -1,3 +1,7 @@
+# 0.5.2
+
+* Replace sprintf with `zend_strpprintf` in bigint conversion path.
+
 # 0.5.1
 
 * Use `INTERNAL_FUNCTION_PARAM_PASSTHRU` to reduce code duplication

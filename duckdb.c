@@ -307,9 +307,8 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *
       if (value <= (uint64_t)ZEND_LONG_MAX) {
         ZVAL_LONG(data, (zend_long)value);
       } else {
-        char buffer[32];
-        snprintf(buffer, sizeof(buffer), "%" PRIu64, value);
-        ZVAL_STRING(data, buffer);
+        zend_string *str = zend_strpprintf(0, ZEND_ULONG_FMT, value);
+        ZVAL_STR(data, str);
       }
       break;
     }
