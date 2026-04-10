@@ -10,17 +10,11 @@ $duckDB->query("CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');");
 
 $result = $duckDB->query("SELECT [1,2,3]::INTEGER[] AS l, [1,2,3]::INTEGER[3] AS a, MAP(['a','b'], [1,2]) AS m, 'happy'::mood AS e;");
 
-$columns = $result->columnCount();
-while ($dataChunk = $result->fetchChunk()) {
-    $rows = $dataChunk->getSize();
-    for ($i = 0; $i < $columns; $i++) {
-        $vector = $dataChunk->getVector($i);
-        for ($r = 0; $r < $rows; $r++) {
-            $data = $vector->getData($r);
-            var_dump($data);
-        }
-    }
-}
+$row = $result->fetch();
+var_dump($row['l']);
+var_dump($row['a']);
+var_dump($row['m']);
+var_dump($row['e']);
 
 ?>
 --EXPECT--

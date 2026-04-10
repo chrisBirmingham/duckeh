@@ -8,28 +8,14 @@ $duckDB = new \DuckDB\DuckDB();
 
 $result = $duckDB->query("SELECT {'yes': 'duck', 'maybe': 'goose', 'huh': NULL, 'no': 'heron'} AS s;");
 
-$columns = $result->columnCount();
-while ($dataChunk = $result->fetchChunk()) {
-    $rows = $dataChunk->getSize();
-    for ($i = 0; $i < $columns; $i++) {
-        $vector = $dataChunk->getVector($i);
-        for ($r = 0; $r < $rows; $r++) {
-            $data = $vector->getData($r);
-            var_dump($data);
-        }
-    }
-}
+$row = $result->fetch();
+var_dump($row['s']);
 
 $result = $duckDB->query("SELECT * FROM VALUES ({'yes': 'duck', 'maybe': 'goose'}), ({'yes': 'cua', 'maybe': 'alfred'}) AS s;");
-$columns = $result->columnCount();
-while ($dataChunk = $result->fetchChunk()) {
-    $rows = $dataChunk->getSize();
-    for ($i = 0; $i < $columns; $i++) {
-        $vector = $dataChunk->getVector($i);
-        for ($r = 0; $r < $rows; $r++) {
-            $data = $vector->getData($r);
-            var_dump($data);
-        }
+
+while ($row = $result->fetch()) {
+    foreach ($row as $col) {
+        var_dump($col);
     }
 }
 

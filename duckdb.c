@@ -32,8 +32,6 @@ static zend_object_handlers duckdb_object_handlers;
 static zend_object_handlers prepared_statement_object_handlers;
 static zend_object_handlers append_statement_object_handlers;
 static zend_object_handlers result_object_handlers;
-static zend_object_handlers data_chunk_object_handlers;
-static zend_object_handlers vector_object_handlers;
 static zend_object_handlers timestamp_object_handlers;
 static zend_object_handlers date_object_handlers;
 static zend_object_handlers time_object_handlers;
@@ -42,8 +40,6 @@ static zend_class_entry *duckdb_class_entry = NULL;
 static zend_class_entry *duckdb_prepared_statement_class_entry = NULL;
 static zend_class_entry *duckdb_appender_class_entry = NULL;
 static zend_class_entry *duckdb_result_class_entry = NULL;
-static zend_class_entry *duckdb_data_chunk_class_entry = NULL;
-static zend_class_entry *duckdb_vector_class_entry = NULL;
 static zend_class_entry *duckdb_timestamp_class_entry = NULL;
 static zend_class_entry *duckdb_date_class_entry = NULL;
 static zend_class_entry *duckdb_time_class_entry = NULL;
@@ -560,19 +556,6 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *
 
 static void get_data(duckdb_vector_t *vector_t, zend_long row_index, zval *data)
 {
-  if (vector_t->type == DUCKDB_TYPE_INVALID) {
-    vector_t->logical_type = duckdb_vector_get_column_type(vector_t->vector);
-    vector_t->type = duckdb_get_type_id(vector_t->logical_type);
-  }
-
-  if (vector_t->validity == NULL) {
-    vector_t->validity = duckdb_vector_get_validity(vector_t->vector);
-  }
-
-  if (vector_t->data == NULL) {
-    vector_t->data = duckdb_vector_get_data(vector_t->vector);
-  }
-
   if (vector_t->validity == NULL) {
     duckdb_value_to_zval(vector_t, row_index, data);
     return;
@@ -588,7 +571,10 @@ static void get_data(duckdb_vector_t *vector_t, zend_long row_index, zval *data)
 
 static inline void duckdb_init_temp_vector(duckdb_vector_t *vector_t, duckdb_vector vector)
 {
-  memset(vector_t, 0, sizeof(*vector_t));
+  vector_t->logical_type = duckdb_vector_get_column_type(vector);
+  vector_t->type = duckdb_get_type_id(vector_t->logical_type);
+  vector_t->validity = duckdb_vector_get_validity(vector);
+  vector_t->data = duckdb_vector_get_data(vector);
   vector_t->vector = vector;
 }
 
@@ -601,10 +587,6 @@ static inline void duckdb_destroy_temp_vector(duckdb_vector_t *vector_t)
 
 static void duckdb_struct_vector_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array)
 {
-  if (vector_t->logical_type == NULL) {
-    vector_t->logical_type = duckdb_vector_get_column_type(vector_t->vector);
-  }
-
   array_init(array);
   uint64_t child_size = duckdb_struct_type_child_count(vector_t->logical_type);
 
@@ -642,10 +624,6 @@ static void duckdb_list_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *
 
 static void duckdb_array_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array)
 {
-  if (vector_t->logical_type == NULL) {
-    vector_t->logical_type = duckdb_vector_get_column_type(vector_t->vector);
-  }
-
   idx_t array_size = duckdb_array_type_array_size(vector_t->logical_type);
   duckdb_vector child_vector = duckdb_array_vector_get_child(vector_t->vector);
   duckdb_vector_t child_vector_t;
@@ -701,10 +679,6 @@ static void duckdb_map_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *a
 
 static void duckdb_union_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *data)
 {
-  if (vector_t->logical_type == NULL) {
-    vector_t->logical_type = duckdb_vector_get_column_type(vector_t->vector);
-  }
-
   idx_t member_count = duckdb_union_type_member_count(vector_t->logical_type);
   for (idx_t i = 0; i < member_count; i++) {
     duckdb_vector child_vector = duckdb_struct_vector_get_child(vector_t->vector, i);
@@ -1135,26 +1109,6 @@ PHP_METHOD(DuckDB_Result, columnCount)
   result_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'c');
 }
 
-PHP_METHOD(DuckDB_Result, fetchChunk)
-{
-  zval *object = ZEND_THIS;
-  duckdb_result_t *result_t;
-  duckdb_data_chunk_t *data_chunk_t;
-  duckdb_data_chunk chunk;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  result_t = Z_DUCKDB_RESULT_P(object);
-
-  if ((chunk = duckdb_fetch_chunk(result_t->result)) == NULL) {
-    RETURN_FALSE;
-  }
-
-  object_init_ex(return_value, duckdb_data_chunk_class_entry);
-  data_chunk_t = Z_DUCKDB_DATA_CHUNK_P(return_value);
-  data_chunk_t->chunk = chunk;
-}
-
 static void fetch_row(zval *arr, duckdb_result *res, duckdb_data_chunk chunk, idx_t column_count, idx_t row)
 {
   for (idx_t c = 0; c < column_count; c++) {
@@ -1227,112 +1181,6 @@ PHP_METHOD(DuckDB_Result, fetchAll)
 
     duckdb_destroy_data_chunk(&chunk);
   }
-}
-
-static zend_object *duckdb_data_chunk_new(zend_class_entry *ce)
-{
-  duckdb_data_chunk_t *data_chunk = zend_object_alloc(sizeof(duckdb_data_chunk_t), ce);
-  zend_object_std_init(&data_chunk->std, ce);
-  object_properties_init(&data_chunk->std, ce);
-  data_chunk->std.handlers = &data_chunk_object_handlers;
-  return &data_chunk->std;
-}
-
-static void duckdb_data_chunk_free_obj(zend_object *obj)
-{
-  duckdb_data_chunk_t *data_chunk = duckdb_data_chunk_t_from_obj(obj);
-  duckdb_destroy_data_chunk(&data_chunk->chunk);
-  zend_object_std_dtor(&data_chunk->std);
-}
-
-static zend_function *duckdb_data_chunk_constructor(zend_object *obj)
-{
-  zend_throw_error(NULL, "You cannot directly instantiate a DuckDB Data Chuck. use Result::fetchChunk");
-  return NULL;
-}
-
-PHP_METHOD(DuckDB_DataChunk, getSize)
-{
-  zval *object = ZEND_THIS;
-  duckdb_data_chunk_t *data_chunk_t;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  data_chunk_t = Z_DUCKDB_DATA_CHUNK_P(object);
-  RETURN_LONG(duckdb_data_chunk_get_size(data_chunk_t->chunk));
-}
-
-PHP_METHOD(DuckDB_DataChunk, getVector)
-{
-  zval *object = ZEND_THIS;
-  duckdb_data_chunk_t *data_chunk_t;
-  duckdb_vector_t *vector_t;
-  zend_long index;
-
-  ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_LONG(index)
-  ZEND_PARSE_PARAMETERS_END();
-
-  if (index < 0) {
-    zend_argument_value_error(1, "must be greater than or equal to 0");
-    RETURN_THROWS();
-  }
-
-  data_chunk_t = Z_DUCKDB_DATA_CHUNK_P(object);
-
-  object_init_ex(return_value, duckdb_vector_class_entry);
-  vector_t = Z_DUCKDB_VECTOR_P(return_value);
-  vector_t->vector = duckdb_data_chunk_get_vector(data_chunk_t->chunk, index);
-}
-
-static zend_object *duckdb_vector_new(zend_class_entry *ce)
-{
-  duckdb_vector_t *vector = zend_object_alloc(sizeof(duckdb_vector_t), ce);
-  zend_object_std_init(&vector->std, ce);
-  object_properties_init(&vector->std, ce);
-  vector->std.handlers = &vector_object_handlers;
-  vector->vector = NULL;
-  vector->type = DUCKDB_TYPE_INVALID;
-  vector->logical_type = NULL;
-  vector->data = NULL;
-  vector->validity = NULL;
-  return &vector->std;
-}
-
-static void duckdb_vector_free_obj(zend_object *obj)
-{
-  duckdb_vector_t *vector = duckdb_vector_t_from_obj(obj);
-
-  if (vector->logical_type != NULL) {
-    duckdb_destroy_logical_type(&vector->logical_type);
-  }
-
-  zend_object_std_dtor(&vector->std);
-}
-
-static zend_function *duckdb_vector_constructor(zend_object *obj)
-{
-  zend_throw_error(NULL, "You cannot directly instantiate a DuckDB Vector, use DataChunk::getVector");
-  return NULL;
-}
-
-PHP_METHOD(DuckDB_Vector, getData)
-{
-  zval *object = ZEND_THIS;
-  duckdb_vector_t *vector_t;
-  zend_long rowIndex;
-
-  ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_LONG(rowIndex)
-  ZEND_PARSE_PARAMETERS_END();
-
-  if (rowIndex < 0) {
-    zend_argument_value_error(1, "must be greater than or equal to 0");
-    RETURN_THROWS();
-  }
-
-  vector_t = Z_DUCKDB_VECTOR_P(object);
-  get_data(vector_t, rowIndex, return_value);
 }
 
 static zend_object *duckdb_timestamp_new(zend_class_entry *ce)
@@ -1639,8 +1487,6 @@ PHP_MINIT_FUNCTION(duckdb)
   memcpy(&prepared_statement_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&append_statement_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&result_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-  memcpy(&data_chunk_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-  memcpy(&vector_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&timestamp_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&date_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&time_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
@@ -1667,18 +1513,6 @@ PHP_MINIT_FUNCTION(duckdb)
   result_object_handlers.offset = XtOffsetOf(duckdb_result_t, std);
   result_object_handlers.get_constructor = duckdb_result_constructor;
   result_object_handlers.free_obj = duckdb_result_free_obj;
-
-  duckdb_data_chunk_class_entry = register_class_DuckDB_DataChunk();
-  duckdb_data_chunk_class_entry->create_object = duckdb_data_chunk_new;
-  data_chunk_object_handlers.offset = XtOffsetOf(duckdb_data_chunk_t, std);
-  data_chunk_object_handlers.get_constructor = duckdb_data_chunk_constructor;
-  data_chunk_object_handlers.free_obj = duckdb_data_chunk_free_obj;
-
-  duckdb_vector_class_entry = register_class_DuckDB_Vector();
-  duckdb_vector_class_entry->create_object = duckdb_vector_new;
-  vector_object_handlers.offset = XtOffsetOf(duckdb_vector_t, std);
-  vector_object_handlers.get_constructor = duckdb_vector_constructor;
-  vector_object_handlers.free_obj = duckdb_vector_free_obj;
 
   duckdb_timestamp_class_entry = register_class_DuckDB_Value_Timestamp(zend_ce_stringable);
   duckdb_timestamp_class_entry->create_object = duckdb_timestamp_new;
