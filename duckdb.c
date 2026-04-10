@@ -580,9 +580,7 @@ static inline void duckdb_init_temp_vector(duckdb_vector_t *vector_t, duckdb_vec
 
 static inline void duckdb_destroy_temp_vector(duckdb_vector_t *vector_t)
 {
-  if (vector_t->logical_type != NULL) {
-    duckdb_destroy_logical_type(&vector_t->logical_type);
-  }
+  duckdb_destroy_logical_type(&vector_t->logical_type);
 }
 
 static void duckdb_struct_vector_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array)
@@ -700,12 +698,10 @@ static void duckdb_union_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *
   ZVAL_NULL(data);
 }
 
-PHP_METHOD(DuckDB_DuckDB, query)
+static void duckdb_run_query(INTERNAL_FUNCTION_PARAMETERS, bool is_prepared)
 {
   zval *object = ZEND_THIS;
   duckdb_t *duckdb_t;
-  duckdb_result_t *result_t;
-  duckdb_result res;
   char *query = NULL;
   size_t query_len = 0;
 
@@ -715,40 +711,39 @@ PHP_METHOD(DuckDB_DuckDB, query)
 
   duckdb_t = Z_DUCKDB_P(object);
 
-  if (duckdb_query(duckdb_t->connection, query, &res) == DuckDBError) {
-    zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(&res), 0);
-    duckdb_destroy_result(&res);
-    RETURN_THROWS();
-  }
+  if (is_prepared) {
+    duckdb_prepared_statement stmt;
+    if (duckdb_prepare(duckdb_t->connection, query, &stmt) == DuckDBError) {
+      zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(stmt), 0);
+      duckdb_destroy_prepare(&stmt);
+      RETURN_THROWS();
+    }
 
-  object_init_ex(return_value, duckdb_result_class_entry);
-  result_t = Z_DUCKDB_RESULT_P(return_value);
-  result_t->result = res;
+    object_init_ex(return_value, duckdb_prepared_statement_class_entry);
+    duckdb_prepared_statement_t *prepared_statement_t = Z_PREPARED_STATEMENT_P(return_value);
+    prepared_statement_t->stmt = stmt;
+  } else {
+    duckdb_result res;
+    if (duckdb_query(duckdb_t->connection, query, &res) == DuckDBError) {
+      zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(&res), 0);
+      duckdb_destroy_result(&res);
+      RETURN_THROWS();
+    }
+
+    object_init_ex(return_value, duckdb_result_class_entry);
+    duckdb_result_t *result_t = Z_DUCKDB_RESULT_P(return_value);
+    result_t->result = res;
+  }
+}
+
+PHP_METHOD(DuckDB_DuckDB, query)
+{
+  duckdb_run_query(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
 PHP_METHOD(DuckDB_DuckDB, prepare)
 {
-  zval *object = ZEND_THIS;
-  duckdb_t *duckdb_t;
-  char *query = NULL;
-  size_t query_len = 0;
-  duckdb_prepared_statement stmt;
-
-  ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_STRING(query, query_len)
-  ZEND_PARSE_PARAMETERS_END();
-
-  duckdb_t = Z_DUCKDB_P(object);
-
-  if (duckdb_prepare(duckdb_t->connection, query, &stmt) == DuckDBError) {
-    zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(stmt), 0);
-    duckdb_destroy_prepare(&stmt);
-    RETURN_THROWS();
-  }
-
-  object_init_ex(return_value, duckdb_prepared_statement_class_entry);
-  duckdb_prepared_statement_t *prepared_statement_t = Z_PREPARED_STATEMENT_P(return_value);
-  prepared_statement_t->stmt = stmt;
+  duckdb_run_query(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 static void appender_error(duckdb_appender appender)
@@ -1083,7 +1078,7 @@ static zend_function *duckdb_result_constructor(zend_object *obj)
   return NULL;
 }
 
-static void result_get_prop(INTERNAL_FUNCTION_PARAMETERS, char type)
+static void result_get_prop(INTERNAL_FUNCTION_PARAMETERS, bool get_rows)
 {
   zval *object = ZEND_THIS;
   duckdb_result_t *result_t;
@@ -1093,20 +1088,18 @@ static void result_get_prop(INTERNAL_FUNCTION_PARAMETERS, char type)
 
   result_t = Z_DUCKDB_RESULT_P(object);
 
-  prop = (type == 'r')
-    ? duckdb_rows_changed(&result_t->result)
-    : duckdb_column_count(&result_t->result);
+  prop = get_rows ? duckdb_rows_changed(&result_t->result) : duckdb_column_count(&result_t->result);
   RETURN_LONG(prop);
 }
 
 PHP_METHOD(DuckDB_Result, rowCount)
 {
-  result_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'r');
+  result_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 PHP_METHOD(DuckDB_Result, columnCount)
 {
-  result_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'c');
+  result_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
 static void fetch_row(zval *arr, duckdb_result *res, duckdb_data_chunk chunk, idx_t column_count, idx_t row)
@@ -1224,7 +1217,7 @@ PHP_METHOD(DuckDB_Value_Timestamp, infinity)
   RETURN_LONG(PHP_DUCKDB_NEGATIVE_INFINITY);
 }
 
-PHP_METHOD(DuckDB_Value_Timestamp, getDate)
+static void timestamp_get_sub(INTERNAL_FUNCTION_PARAMETERS, bool get_time)
 {
   zval *object = ZEND_THIS;
   duckdb_timestamp_t *timestamp_t;
@@ -1233,27 +1226,27 @@ PHP_METHOD(DuckDB_Value_Timestamp, getDate)
   ZEND_PARSE_PARAMETERS_NONE();
 
   timestamp_t = Z_DUCKDB_TIMESTAMP_P(object);
-
   timestamp_struct = duckdb_from_timestamp(timestamp_t->timestamp);
-  object_init_ex(return_value, duckdb_date_class_entry);
-  duckdb_date_t *date_t = Z_DUCKDB_DATE_P(return_value);
-  date_t->date = duckdb_to_date(timestamp_struct.date);
+
+  if (get_time) {
+    object_init_ex(return_value, duckdb_time_class_entry);
+    duckdb_time_t *time_t = Z_DUCKDB_TIME_P(return_value);
+    time_t->time = timestamp_struct.time;
+  } else {
+    object_init_ex(return_value, duckdb_date_class_entry);
+    duckdb_date_t *date_t = Z_DUCKDB_DATE_P(return_value);
+    date_t->date = duckdb_to_date(timestamp_struct.date);
+  }
+}
+
+PHP_METHOD(DuckDB_Value_Timestamp, getDate)
+{
+  timestamp_get_sub(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
 PHP_METHOD(DuckDB_Value_Timestamp, getTime)
 {
-  zval *object = ZEND_THIS;
-  duckdb_timestamp_t *timestamp_t;
-  duckdb_timestamp_struct timestamp_struct;
-
-  ZEND_PARSE_PARAMETERS_NONE();
-
-  timestamp_t = Z_DUCKDB_TIMESTAMP_P(object);
-
-  timestamp_struct = duckdb_from_timestamp(timestamp_t->timestamp);
-  object_init_ex(return_value, duckdb_time_class_entry);
-  duckdb_time_t *time_t = Z_DUCKDB_TIME_P(return_value);
-  time_t->time = timestamp_struct.time;
+  timestamp_get_sub(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 PHP_METHOD(DuckDB_Value_Timestamp, __toString)
