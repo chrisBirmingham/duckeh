@@ -796,7 +796,7 @@ PHP_METHOD(DuckDB_DuckDB, append)
   size_t catalogue_len = 0;
   duckdb_appender appender;
 
-  ZEND_PARSE_PARAMETERS_START(1, 2)
+  ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_STRING(table, table_len)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_OR_NULL(schema, schema_len)

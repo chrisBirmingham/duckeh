@@ -1,3 +1,7 @@
+# 0.5.3
+
+* Fix DuckDB::append not accepting correct number of arguments
+
 # 0.5.2
 
 * Replace sprintf with `zend_strpprintf` in bigint conversion path.
