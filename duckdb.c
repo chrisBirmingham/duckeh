@@ -159,12 +159,8 @@ static void duckdb_union_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
 static inline void duckdb_string_t_to_zval(const duckdb_string_t *string, zval *data)
 {
   uint32_t len = string->value.inlined.length;
-
-  if (len > 12) {
-    ZVAL_STRINGL(data, string->value.pointer.ptr, len);
-  } else {
-    ZVAL_STRINGL(data, string->value.inlined.inlined, len);
-  }
+  const char* ptr = (len > 12) ? string->value.pointer.ptr : string->value.inlined.inlined;
+  ZVAL_STRINGL(data, ptr, len);
 }
 
 static zend_string *duckdb_bignum_to_decimal_string(const unsigned char *bytes, size_t len, bool is_negative)
@@ -213,13 +209,9 @@ static zend_string *duckdb_bignum_to_decimal_string(const unsigned char *bytes, 
 static zend_string *duckdb_string_t_to_bignum_string(const duckdb_string_t *string)
 {
   uint32_t len = string->value.inlined.length;
-  const unsigned char *ptr = NULL;
-
-  if (len > 12) {
-    ptr = (const unsigned char *)string->value.pointer.ptr;
-  } else {
-    ptr = (const unsigned char *)string->value.inlined.inlined;
-  }
+  const unsigned char *ptr = (const unsigned char *)((len > 12)
+    ? string->value.pointer.ptr
+    : string->value.inlined.inlined);
 
   bool is_negative = (len > 1 && ptr[1] != 0);
   if (len <= 3) {
@@ -245,17 +237,13 @@ static inline void duckdb_value_to_zval_string(duckdb_value value, zval *data)
 
 static inline duckdb_hugeint duckdb_hugeint_from_int64(int64_t input)
 {
-  duckdb_hugeint result;
-  result.lower = (uint64_t)input;
-  result.upper = input < 0 ? -1 : 0;
+  duckdb_hugeint result = {.lower = (uint64_t)input, .upper = input < 0 ? -1 : 0};
   return result;
 }
 
 static inline duckdb_hugeint duckdb_hugeint_from_uint64(uint64_t input)
 {
-  duckdb_hugeint result;
-  result.lower = input;
-  result.upper = 0;
+  duckdb_hugeint result = {.lower = input, .upper = 0};
   return result;
 }
 
@@ -264,6 +252,27 @@ static inline void duckdb_timestamp_to_zval(zval *data, duckdb_timestamp timesta
   object_init_ex(data, duckdb_timestamp_class_entry);
   duckdb_timestamp_t *timestamp_t = Z_DUCKDB_TIMESTAMP_P(data);
   timestamp_t->timestamp = timestamp;
+}
+
+static void duckdb_timestamp_to_timestamp(duckdb_vector_t * vector_t, idx_t row_index, zval *data)
+{
+  duckdb_value value = NULL;
+  duckdb_type type = vector_t->type;
+
+  if (type == DUCKDB_TYPE_TIMESTAMP_S) {
+    duckdb_timestamp_s timestamp_s = ((duckdb_timestamp_s *)vector_t->data)[row_index];
+    value = duckdb_create_timestamp_s(timestamp_s);
+  } else if (type == DUCKDB_TYPE_TIMESTAMP_MS) {
+    duckdb_timestamp_ms timestamp_ms = ((duckdb_timestamp_ms *)vector_t->data)[row_index];
+    duckdb_value value = duckdb_create_timestamp_ms(timestamp_ms);
+  } else if (type == DUCKDB_TYPE_TIMESTAMP_NS) {
+    duckdb_timestamp_ns timestamp_ns = ((duckdb_timestamp_ns *)vector_t->data)[row_index];
+    duckdb_value value = duckdb_create_timestamp_ns(timestamp_ns);
+  }
+
+  duckdb_timestamp timestamp = duckdb_get_timestamp(value);
+  duckdb_destroy_value(&value);
+  duckdb_timestamp_to_zval(data, timestamp);
 }
 
 static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval *data)
@@ -314,6 +323,7 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
       ZVAL_DOUBLE(data, ((double *)vector_t->data)[rowIndex]);
       break;
     case DUCKDB_TYPE_TIMESTAMP:
+    case DUCKDB_TYPE_TIMESTAMP_TZ:
       duckdb_timestamp_to_zval(data, ((duckdb_timestamp *)vector_t->data)[rowIndex]);
       break;
     case DUCKDB_TYPE_DATE:
@@ -331,41 +341,10 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
       break;
     }
     case DUCKDB_TYPE_TIMESTAMP_S:
-    {
-      duckdb_timestamp_s timestamp_s = ((duckdb_timestamp_s *)vector_t->data)[rowIndex];
-      duckdb_value value = duckdb_create_timestamp_s(timestamp_s);
-      duckdb_timestamp timestamp = duckdb_get_timestamp(value);
-      duckdb_destroy_value(&value);
-      duckdb_timestamp_to_zval(data, timestamp);
-      break;
-    }
     case DUCKDB_TYPE_TIMESTAMP_MS:
-    {
-      duckdb_timestamp_ms timestamp_ms = ((duckdb_timestamp_ms *)vector_t->data)[rowIndex];
-      duckdb_value value = duckdb_create_timestamp_ms(timestamp_ms);
-      duckdb_timestamp timestamp = duckdb_get_timestamp(value);
-      duckdb_destroy_value(&value);
-      duckdb_timestamp_to_zval(data, timestamp);
-      break;
-    }
     case DUCKDB_TYPE_TIMESTAMP_NS:
-    {
-      duckdb_timestamp_ns timestamp_ns = ((duckdb_timestamp_ns *)vector_t->data)[rowIndex];
-      duckdb_value value = duckdb_create_timestamp_ns(timestamp_ns);
-      duckdb_timestamp timestamp = duckdb_get_timestamp(value);
-      duckdb_destroy_value(&value);
-      duckdb_timestamp_to_zval(data, timestamp);
+      duckdb_timestamp_to_timestamp(vector_t, rowIndex, data);
       break;
-    }
-    case DUCKDB_TYPE_TIMESTAMP_TZ:
-    {
-      duckdb_timestamp timestamp_tz = ((duckdb_timestamp *)vector_t->data)[rowIndex];
-      duckdb_value value = duckdb_create_timestamp_tz(timestamp_tz);
-      duckdb_timestamp timestamp = duckdb_get_timestamp(value);
-      duckdb_destroy_value(&value);
-      duckdb_timestamp_to_zval(data, timestamp);
-      break;
-    }
     case DUCKDB_TYPE_TIME_TZ:
     {
       duckdb_time_tz time_tz = ((duckdb_time_tz *)vector_t->data)[rowIndex];
@@ -495,16 +474,11 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
     {
       duckdb_string_t *string = &((duckdb_string_t *)vector_t->data)[rowIndex];
       uint32_t len = string->value.inlined.length;
-      uint8_t *ptr = NULL;
-      if (len > 12) {
-        ptr = (uint8_t *)string->value.pointer.ptr;
-      } else {
-        ptr = (uint8_t *)string->value.inlined.inlined;
-      }
+      uint8_t *ptr = (uint8_t *)((len > 12)
+        ? string->value.pointer.ptr
+        : string->value.inlined.inlined);
 
-      duckdb_bit bit_value;
-      bit_value.data = ptr;
-      bit_value.size = len;
+      duckdb_bit bit_value = {.data = ptr, .size = len};
       duckdb_value value = duckdb_create_bit(bit_value);
       duckdb_value_to_zval_string(value, data);
       break;
