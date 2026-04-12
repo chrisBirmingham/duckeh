@@ -149,12 +149,12 @@ PHP_METHOD(DuckDB_DuckDB, __construct)
   duckdb_t->connection = connection;
 }
 
-static void get_data(duckdb_vector_t *vector_t, zend_long row_index, zval *data);
-static void duckdb_struct_vector_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array);
-static void duckdb_list_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array);
-static void duckdb_array_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array);
-static void duckdb_map_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array);
-static void duckdb_union_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *data);
+static void get_data(duckdb_vector_t *vector_t, idx_t row_index, zval *data);
+static void duckdb_struct_vector_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array);
+static void duckdb_list_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array);
+static void duckdb_array_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array);
+static void duckdb_map_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array);
+static void duckdb_union_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval *data);
 
 static inline void duckdb_string_t_to_zval(const duckdb_string_t *string, zval *data)
 {
@@ -162,10 +162,9 @@ static inline void duckdb_string_t_to_zval(const duckdb_string_t *string, zval *
 
   if (len > 12) {
     ZVAL_STRINGL(data, string->value.pointer.ptr, len);
-    return;
+  } else {
+    ZVAL_STRINGL(data, string->value.inlined.inlined, len);
   }
-
-  ZVAL_STRINGL(data, string->value.inlined.inlined, len);
 }
 
 static zend_string *duckdb_bignum_to_decimal_string(const unsigned char *bytes, size_t len, bool is_negative)
@@ -267,7 +266,7 @@ static inline void duckdb_timestamp_to_zval(zval *data, duckdb_timestamp timesta
   timestamp_t->timestamp = timestamp;
 }
 
-static void duckdb_value_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *data)
+static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval *data)
 {
   switch (vector_t->type) {
     case DUCKDB_TYPE_BOOLEAN:
@@ -376,7 +375,6 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *
       time_t->time = time_tz_struct.time;
       break;
     }
-#ifdef DUCKDB_TYPE_TIME_NS
     case DUCKDB_TYPE_TIME_NS:
     {
       duckdb_time_ns time_ns = ((duckdb_time_ns *)vector_t->data)[rowIndex];
@@ -384,7 +382,6 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *
       duckdb_value_to_zval_string(value, data);
       break;
     }
-#endif
     case DUCKDB_TYPE_STRUCT:
       duckdb_struct_vector_to_array(vector_t, rowIndex, data);
       break;
@@ -547,26 +544,18 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *
       break;
     case DUCKDB_TYPE_SQLNULL:
     case DUCKDB_TYPE_ANY:
-      ZVAL_NULL(data);
-      break;
     default:
       ZVAL_NULL(data);
     }
 }
 
-static void get_data(duckdb_vector_t *vector_t, zend_long row_index, zval *data)
+static void get_data(duckdb_vector_t *vector_t, idx_t row_index, zval *data)
 {
-  if (vector_t->validity == NULL) {
+  if (vector_t->validity == NULL || duckdb_validity_row_is_valid(vector_t->validity, row_index)) {
     duckdb_value_to_zval(vector_t, row_index, data);
-    return;
+  } else {
+    ZVAL_NULL(data);
   }
-
-  if (duckdb_validity_row_is_valid(vector_t->validity, row_index)) {
-    duckdb_value_to_zval(vector_t, row_index, data);
-    return;
-  }
-
-  ZVAL_NULL(data);
 }
 
 static inline void duckdb_init_temp_vector(duckdb_vector_t *vector_t, duckdb_vector vector)
@@ -583,7 +572,7 @@ static inline void duckdb_destroy_temp_vector(duckdb_vector_t *vector_t)
   duckdb_destroy_logical_type(&vector_t->logical_type);
 }
 
-static void duckdb_struct_vector_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array)
+static void duckdb_struct_vector_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array)
 {
   array_init(array);
   uint64_t child_size = duckdb_struct_type_child_count(vector_t->logical_type);
@@ -602,7 +591,7 @@ static void duckdb_struct_vector_to_array(duckdb_vector_t *vector_t, int rowInde
   }
 }
 
-static void duckdb_list_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array)
+static void duckdb_list_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array)
 {
   duckdb_list_entry entry = ((duckdb_list_entry *)vector_t->data)[rowIndex];
   duckdb_vector child_vector = duckdb_list_vector_get_child(vector_t->vector);
@@ -620,7 +609,7 @@ static void duckdb_list_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *
   duckdb_destroy_temp_vector(&child_vector_t);
 }
 
-static void duckdb_array_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array)
+static void duckdb_array_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array)
 {
   idx_t array_size = duckdb_array_type_array_size(vector_t->logical_type);
   duckdb_vector child_vector = duckdb_array_vector_get_child(vector_t->vector);
@@ -639,7 +628,7 @@ static void duckdb_array_to_array(duckdb_vector_t *vector_t, int rowIndex, zval 
   duckdb_destroy_temp_vector(&child_vector_t);
 }
 
-static void duckdb_map_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *array)
+static void duckdb_map_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array)
 {
   duckdb_list_entry entry = ((duckdb_list_entry *)vector_t->data)[rowIndex];
   duckdb_vector child_vector = duckdb_list_vector_get_child(vector_t->vector);
@@ -675,7 +664,7 @@ static void duckdb_map_to_array(duckdb_vector_t *vector_t, int rowIndex, zval *a
   duckdb_destroy_temp_vector(&value_vector_t);
 }
 
-static void duckdb_union_to_zval(duckdb_vector_t *vector_t, int rowIndex, zval *data)
+static void duckdb_union_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval *data)
 {
   idx_t member_count = duckdb_union_type_member_count(vector_t->logical_type);
   for (idx_t i = 0; i < member_count; i++) {
@@ -702,6 +691,9 @@ static void duckdb_run_query(INTERNAL_FUNCTION_PARAMETERS, bool is_prepared)
 {
   zval *object = ZEND_THIS;
   duckdb_t *duckdb_t;
+  duckdb_state state;
+  duckdb_prepared_statement stmt;
+  duckdb_result res;
   char *query = NULL;
   size_t query_len = 0;
 
@@ -711,25 +703,27 @@ static void duckdb_run_query(INTERNAL_FUNCTION_PARAMETERS, bool is_prepared)
 
   duckdb_t = Z_DUCKDB_P(object);
 
-  if (is_prepared) {
-    duckdb_prepared_statement stmt;
-    if (duckdb_prepare(duckdb_t->connection, query, &stmt) == DuckDBError) {
+  state = is_prepared
+    ? duckdb_prepare(duckdb_t->connection, query, &stmt)
+    : duckdb_query(duckdb_t->connection, query, &res);
+
+  if (state == DuckDBError) {
+    if (is_prepared) {
       zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(stmt), 0);
       duckdb_destroy_prepare(&stmt);
-      RETURN_THROWS();
+    } else {
+      zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(&res), 0);
+      duckdb_destroy_result(&res);
     }
 
+    RETURN_THROWS();
+  }
+
+  if (is_prepared) {
     object_init_ex(return_value, duckdb_prepared_statement_class_entry);
     duckdb_prepared_statement_t *prepared_statement_t = Z_PREPARED_STATEMENT_P(return_value);
     prepared_statement_t->stmt = stmt;
   } else {
-    duckdb_result res;
-    if (duckdb_query(duckdb_t->connection, query, &res) == DuckDBError) {
-      zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(&res), 0);
-      duckdb_destroy_result(&res);
-      RETURN_THROWS();
-    }
-
     object_init_ex(return_value, duckdb_result_class_entry);
     duckdb_result_t *result_t = Z_DUCKDB_RESULT_P(return_value);
     result_t->result = res;
@@ -1110,7 +1104,7 @@ static void fetch_row(zval *arr, duckdb_result *res, duckdb_data_chunk chunk, id
     duckdb_init_temp_vector(&vector, duckdb_data_chunk_get_vector(chunk, c));
 
     zval value;
-    get_data(&vector, (zend_long)row, &value);
+    get_data(&vector, row, &value);
     add_assoc_zval(arr, name, &value);
   }
 }
@@ -1150,6 +1144,7 @@ PHP_METHOD(DuckDB_Result, fetchAll)
 {
   zval *object = ZEND_THIS;
   duckdb_result_t *result_t;
+  duckdb_data_chunk chunk;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
@@ -1157,14 +1152,9 @@ PHP_METHOD(DuckDB_Result, fetchAll)
   idx_t column_count = duckdb_column_count(&result_t->result);
   array_init(return_value);
 
-  for (;;) {
-    duckdb_data_chunk chunk = duckdb_fetch_chunk(result_t->result);
-
-    if (!chunk) {
-      break;
-    }
-
+  while ((chunk = duckdb_fetch_chunk(result_t->result)) != NULL) {
     idx_t chunk_size = duckdb_data_chunk_get_size(chunk);
+
     for (idx_t r = 0; r < chunk_size; r++) {
       zval arr;
       array_init_size(&arr, column_count);
