@@ -541,11 +541,10 @@ static void fetch_row(zval *arr, duckdb_result *res, duckdb_data_chunk chunk, id
 {
   for (idx_t c = 0; c < column_count; c++) {
     const char *name = duckdb_column_name(res, c);
-    duckdb_vector_t vector;
-    duckdb_init_temp_vector(&vector, duckdb_data_chunk_get_vector(chunk, c));
+    duckdb_vector vector = duckdb_data_chunk_get_vector(chunk, c);
 
     zval value;
-    duckval_to_zval(&vector, row, &value);
+    duckval_to_zval(vector, row, &value);
     add_assoc_zval(arr, name, &value);
   }
 }

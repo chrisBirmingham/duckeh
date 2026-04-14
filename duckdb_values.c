@@ -1,6 +1,5 @@
-#include "php.h"
-#include "duckdb_structs.h"
 #include "duckdb_values.h"
+#include "duckdb_structs.h"
 
 static inline void duckdb_string_t_to_zval(const duckdb_string_t *string, zval *data)
 {
@@ -100,19 +99,18 @@ static inline void duckdb_timestamp_to_zval(zval *data, duckdb_timestamp timesta
   timestamp_t->timestamp = timestamp;
 }
 
-static void duckdb_timestamp_to_timestamp(duckdb_vector_t * vector_t, idx_t row_index, zval *data)
+static void duckdb_timestamp_to_timestamp(duckdb_type type, void *buf, idx_t row_index, zval *data)
 {
   duckdb_value value = NULL;
-  duckdb_type type = vector_t->type;
 
   if (type == DUCKDB_TYPE_TIMESTAMP_S) {
-    duckdb_timestamp_s timestamp_s = ((duckdb_timestamp_s *)vector_t->data)[row_index];
+    duckdb_timestamp_s timestamp_s = ((duckdb_timestamp_s *)buf)[row_index];
     value = duckdb_create_timestamp_s(timestamp_s);
   } else if (type == DUCKDB_TYPE_TIMESTAMP_MS) {
-    duckdb_timestamp_ms timestamp_ms = ((duckdb_timestamp_ms *)vector_t->data)[row_index];
+    duckdb_timestamp_ms timestamp_ms = ((duckdb_timestamp_ms *)buf)[row_index];
     duckdb_value value = duckdb_create_timestamp_ms(timestamp_ms);
   } else if (type == DUCKDB_TYPE_TIMESTAMP_NS) {
-    duckdb_timestamp_ns timestamp_ns = ((duckdb_timestamp_ns *)vector_t->data)[row_index];
+    duckdb_timestamp_ns timestamp_ns = ((duckdb_timestamp_ns *)buf)[row_index];
     duckdb_value value = duckdb_create_timestamp_ns(timestamp_ns);
   }
 
@@ -121,80 +119,62 @@ static void duckdb_timestamp_to_timestamp(duckdb_vector_t * vector_t, idx_t row_
   duckdb_timestamp_to_zval(data, timestamp);
 }
 
-static void duckdb_struct_vector_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array)
+static void duckdb_struct_vector_to_array(duckdb_vector vector, idx_t row_index, zval *array, duckdb_logical_type logical_type)
 {
   array_init(array);
-  uint64_t child_size = duckdb_struct_type_child_count(vector_t->logical_type);
+  uint64_t child_size = duckdb_struct_type_child_count(logical_type);
 
   for (uint64_t i = 0; i < child_size; i++) {
-    char *name = duckdb_struct_type_child_name(vector_t->logical_type, i);
-    duckdb_vector child_vector = duckdb_struct_vector_get_child(vector_t->vector, i);
-    duckdb_vector_t child_vector_t;
+    char *name = duckdb_struct_type_child_name(logical_type, i);
+    duckdb_vector child_vector = duckdb_struct_vector_get_child(vector, i);
     zval data;
 
-    duckdb_init_temp_vector(&child_vector_t, child_vector);
-    duckval_to_zval(&child_vector_t, rowIndex, &data);
+    duckval_to_zval(child_vector, row_index, &data);
     add_assoc_zval(array, name, &data);
     duckdb_free(name);
-    duckdb_destroy_temp_vector(&child_vector_t);
   }
 }
 
-static void duckdb_list_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array)
+static void duckdb_list_to_array(duckdb_vector vector, duckdb_list_entry entry, zval *array)
 {
-  duckdb_list_entry entry = ((duckdb_list_entry *)vector_t->data)[rowIndex];
-  duckdb_vector child_vector = duckdb_list_vector_get_child(vector_t->vector);
-  duckdb_vector_t child_vector_t;
-
-  duckdb_init_temp_vector(&child_vector_t, child_vector);
+  duckdb_vector child_vector = duckdb_list_vector_get_child(vector);
   array_init_size(array, (uint32_t)entry.length);
 
   for (uint64_t i = 0; i < entry.length; i++) {
     zval data;
-    duckval_to_zval(&child_vector_t, entry.offset + i, &data);
+    duckval_to_zval(child_vector, entry.offset + i, &data);
     add_next_index_zval(array, &data);
   }
-
-  duckdb_destroy_temp_vector(&child_vector_t);
 }
 
-static void duckdb_array_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array)
+static void duckdb_array_to_array(duckdb_vector vector, idx_t row_index, zval *array, duckdb_logical_type logical_type)
 {
-  idx_t array_size = duckdb_array_type_array_size(vector_t->logical_type);
-  duckdb_vector child_vector = duckdb_array_vector_get_child(vector_t->vector);
-  duckdb_vector_t child_vector_t;
-  uint64_t offset = (uint64_t)rowIndex * (uint64_t)array_size;
+  idx_t array_size = duckdb_array_type_array_size(logical_type);
+  duckdb_vector child_vector = duckdb_array_vector_get_child(vector);
+  uint64_t offset = (uint64_t)row_index * (uint64_t)array_size;
 
-  duckdb_init_temp_vector(&child_vector_t, child_vector);
   array_init_size(array, (uint32_t)array_size);
 
   for (uint64_t i = 0; i < array_size; i++) {
     zval data;
-    duckval_to_zval(&child_vector_t, offset + i, &data);
+    duckval_to_zval(child_vector, offset + i, &data);
     add_next_index_zval(array, &data);
   }
-
-  duckdb_destroy_temp_vector(&child_vector_t);
 }
 
-static void duckdb_map_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval *array)
+static void duckdb_map_to_array(duckdb_vector vector, duckdb_list_entry entry, zval *array)
 {
-  duckdb_list_entry entry = ((duckdb_list_entry *)vector_t->data)[rowIndex];
-  duckdb_vector child_vector = duckdb_list_vector_get_child(vector_t->vector);
+  duckdb_vector child_vector = duckdb_list_vector_get_child(vector);
   duckdb_vector key_vector = duckdb_struct_vector_get_child(child_vector, 0);
   duckdb_vector value_vector = duckdb_struct_vector_get_child(child_vector, 1);
-  duckdb_vector_t key_vector_t;
-  duckdb_vector_t value_vector_t;
 
-  duckdb_init_temp_vector(&key_vector_t, key_vector);
-  duckdb_init_temp_vector(&value_vector_t, value_vector);
   array_init_size(array, (uint32_t)entry.length);
 
   for (uint64_t i = 0; i < entry.length; i++) {
     zval key;
     zval value;
-    duckval_to_zval(&key_vector_t, entry.offset + i, &key);
-    duckval_to_zval(&value_vector_t, entry.offset + i, &value);
+    duckval_to_zval(key_vector, entry.offset + i, &key);
+    duckval_to_zval(value_vector, entry.offset + i, &value);
 
     if (Z_TYPE(key) == IS_LONG) {
       add_index_zval(array, Z_LVAL(key), &value);
@@ -208,22 +188,16 @@ static void duckdb_map_to_array(duckdb_vector_t *vector_t, idx_t rowIndex, zval 
 
     zval_ptr_dtor(&key);
   }
-
-  duckdb_destroy_temp_vector(&key_vector_t);
-  duckdb_destroy_temp_vector(&value_vector_t);
 }
 
-static void duckdb_union_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval *data)
+static void duckdb_union_to_zval(duckdb_vector vector, idx_t row_index, zval *data, duckdb_logical_type logical_type)
 {
-  idx_t member_count = duckdb_union_type_member_count(vector_t->logical_type);
+  idx_t member_count = duckdb_union_type_member_count(logical_type);
   for (idx_t i = 0; i < member_count; i++) {
-    duckdb_vector child_vector = duckdb_struct_vector_get_child(vector_t->vector, i);
-    duckdb_vector_t child_vector_t;
+    duckdb_vector child_vector = duckdb_struct_vector_get_child(vector, i);
     zval value;
 
-    duckdb_init_temp_vector(&child_vector_t, child_vector);
-    duckval_to_zval(&child_vector_t, rowIndex, &value);
-    duckdb_destroy_temp_vector(&child_vector_t);
+    duckval_to_zval(child_vector, row_index, &value);
 
     if (Z_TYPE(value) != IS_NULL) {
       ZVAL_COPY_VALUE(data, &value);
@@ -236,39 +210,43 @@ static void duckdb_union_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
   ZVAL_NULL(data);
 }
 
-static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval *data)
+static void duckdb_value_to_zval(duckdb_vector vector, idx_t row_index, zval *data)
 {
-  switch (vector_t->type) {
+  void *buf = duckdb_vector_get_data(vector);
+  duckdb_logical_type logical_type = duckdb_vector_get_column_type(vector);
+  duckdb_type type = duckdb_get_type_id(logical_type);
+
+  switch (type) {
     case DUCKDB_TYPE_BOOLEAN:
-      ZVAL_BOOL(data, ((bool *)vector_t->data)[rowIndex]);
+      ZVAL_BOOL(data, ((bool *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_VARCHAR:
-      duckdb_string_t_to_zval(&((duckdb_string_t *)vector_t->data)[rowIndex], data);
+      duckdb_string_t_to_zval(&((duckdb_string_t *)buf)[row_index], data);
       break;
     case DUCKDB_TYPE_TINYINT:
-      ZVAL_LONG(data, ((int8_t *)vector_t->data)[rowIndex]);
+      ZVAL_LONG(data, ((int8_t *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_SMALLINT:
-      ZVAL_LONG(data, ((int16_t *)vector_t->data)[rowIndex]);
+      ZVAL_LONG(data, ((int16_t *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_INTEGER:
-      ZVAL_LONG(data, ((int32_t *)vector_t->data)[rowIndex]);
+      ZVAL_LONG(data, ((int32_t *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_BIGINT:
-      ZVAL_LONG(data, ((int64_t *)vector_t->data)[rowIndex]);
+      ZVAL_LONG(data, ((int64_t *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_UTINYINT:
-      ZVAL_LONG(data, ((uint8_t *)vector_t->data)[rowIndex]);
+      ZVAL_LONG(data, ((uint8_t *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_USMALLINT:
-      ZVAL_LONG(data, ((uint16_t *)vector_t->data)[rowIndex]);
+      ZVAL_LONG(data, ((uint16_t *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_UINTEGER:
-      ZVAL_LONG(data, ((uint32_t *)vector_t->data)[rowIndex]);
+      ZVAL_LONG(data, ((uint32_t *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_UBIGINT:
     {
-      uint64_t value = ((uint64_t *)vector_t->data)[rowIndex];
+      uint64_t value = ((uint64_t *)buf)[row_index];
       if (value <= (uint64_t)ZEND_LONG_MAX) {
         ZVAL_LONG(data, (zend_long)value);
       } else {
@@ -278,37 +256,37 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
       break;
     }
     case DUCKDB_TYPE_FLOAT:
-      ZVAL_DOUBLE(data, ((float *)vector_t->data)[rowIndex]);
+      ZVAL_DOUBLE(data, ((float *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_DOUBLE:
-      ZVAL_DOUBLE(data, ((double *)vector_t->data)[rowIndex]);
+      ZVAL_DOUBLE(data, ((double *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_TIMESTAMP:
     case DUCKDB_TYPE_TIMESTAMP_TZ:
-      duckdb_timestamp_to_zval(data, ((duckdb_timestamp *)vector_t->data)[rowIndex]);
+      duckdb_timestamp_to_zval(data, ((duckdb_timestamp *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_DATE:
     {
       object_init_ex(data, duckdb_date_class_entry);
       duckdb_date_t *date_t = Z_DUCKDB_DATE_P(data);
-      date_t->date = ((duckdb_date *)vector_t->data)[rowIndex];
+      date_t->date = ((duckdb_date *)buf)[row_index];
       break;
     }
     case DUCKDB_TYPE_TIME:
     {
       object_init_ex(data, duckdb_time_class_entry);
       duckdb_time_t *time_t = Z_DUCKDB_TIME_P(data);
-      time_t->time = duckdb_from_time(((duckdb_time *)vector_t->data)[rowIndex]);
+      time_t->time = duckdb_from_time(((duckdb_time *)buf)[row_index]);
       break;
     }
     case DUCKDB_TYPE_TIMESTAMP_S:
     case DUCKDB_TYPE_TIMESTAMP_MS:
     case DUCKDB_TYPE_TIMESTAMP_NS:
-      duckdb_timestamp_to_timestamp(vector_t, rowIndex, data);
+      duckdb_timestamp_to_timestamp(type, buf, row_index, data);
       break;
     case DUCKDB_TYPE_TIME_TZ:
     {
-      duckdb_time_tz time_tz = ((duckdb_time_tz *)vector_t->data)[rowIndex];
+      duckdb_time_tz time_tz = ((duckdb_time_tz *)buf)[row_index];
       duckdb_time_tz_struct time_tz_struct = duckdb_from_time_tz(time_tz);
       object_init_ex(data, duckdb_time_class_entry);
       duckdb_time_t *time_t = Z_DUCKDB_TIME_P(data);
@@ -317,52 +295,52 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
     }
     case DUCKDB_TYPE_TIME_NS:
     {
-      duckdb_time_ns time_ns = ((duckdb_time_ns *)vector_t->data)[rowIndex];
+      duckdb_time_ns time_ns = ((duckdb_time_ns *)buf)[row_index];
       duckdb_value value = duckdb_create_time_ns(time_ns);
       duckdb_value_to_zval_string(value, data);
       break;
     }
     case DUCKDB_TYPE_STRUCT:
-      duckdb_struct_vector_to_array(vector_t, rowIndex, data);
+      duckdb_struct_vector_to_array(vector, row_index, data, logical_type);
       break;
     case DUCKDB_TYPE_LIST:
-      duckdb_list_to_array(vector_t, rowIndex, data);
+      duckdb_list_to_array(vector, ((duckdb_list_entry *)buf)[row_index], data);
       break;
     case DUCKDB_TYPE_ARRAY:
-      duckdb_array_to_array(vector_t, rowIndex, data);
+      duckdb_array_to_array(vector, row_index, data, logical_type);
       break;
     case DUCKDB_TYPE_MAP:
-      duckdb_map_to_array(vector_t, rowIndex, data);
+      duckdb_map_to_array(vector, ((duckdb_list_entry *)buf)[row_index], data);
       break;
     case DUCKDB_TYPE_ENUM:
     {
-      duckdb_type internal_type = duckdb_enum_internal_type(vector_t->logical_type);
+      duckdb_type internal_type = duckdb_enum_internal_type(logical_type);
       uint64_t enum_index = 0;
       switch (internal_type) {
         case DUCKDB_TYPE_UTINYINT:
-          enum_index = ((uint8_t *)vector_t->data)[rowIndex];
+          enum_index = ((uint8_t *)buf)[row_index];
           break;
         case DUCKDB_TYPE_USMALLINT:
-          enum_index = ((uint16_t *)vector_t->data)[rowIndex];
+          enum_index = ((uint16_t *)buf)[row_index];
           break;
         case DUCKDB_TYPE_UINTEGER:
-          enum_index = ((uint32_t *)vector_t->data)[rowIndex];
+          enum_index = ((uint32_t *)buf)[row_index];
           break;
         case DUCKDB_TYPE_UBIGINT:
-          enum_index = ((uint64_t *)vector_t->data)[rowIndex];
+          enum_index = ((uint64_t *)buf)[row_index];
           break;
         default:
           ZVAL_NULL(data);
           return;
         }
 
-        uint32_t dictionary_size = duckdb_enum_dictionary_size(vector_t->logical_type);
+        uint32_t dictionary_size = duckdb_enum_dictionary_size(logical_type);
         if (enum_index >= dictionary_size) {
           ZVAL_NULL(data);
           break;
         }
 
-        char *enum_value = duckdb_enum_dictionary_value(vector_t->logical_type, (idx_t)enum_index);
+        char *enum_value = duckdb_enum_dictionary_value(logical_type, (idx_t)enum_index);
         if (enum_value == NULL) {
           ZVAL_NULL(data);
           break;
@@ -375,36 +353,36 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
     case DUCKDB_TYPE_DECIMAL:
     {
       duckdb_decimal decimal;
-      decimal.width = duckdb_decimal_width(vector_t->logical_type);
-      decimal.scale = duckdb_decimal_scale(vector_t->logical_type);
+      decimal.width = duckdb_decimal_width(logical_type);
+      decimal.scale = duckdb_decimal_scale(logical_type);
 
-      switch (duckdb_decimal_internal_type(vector_t->logical_type)) {
+      switch (duckdb_decimal_internal_type(logical_type)) {
         case DUCKDB_TYPE_TINYINT:
-          decimal.value = duckdb_hugeint_from_int64(((int8_t *)vector_t->data)[rowIndex]);
+          decimal.value = duckdb_hugeint_from_int64(((int8_t *)buf)[row_index]);
           break;
         case DUCKDB_TYPE_SMALLINT:
-          decimal.value = duckdb_hugeint_from_int64(((int16_t *)vector_t->data)[rowIndex]);
+          decimal.value = duckdb_hugeint_from_int64(((int16_t *)buf)[row_index]);
           break;
         case DUCKDB_TYPE_INTEGER:
-          decimal.value = duckdb_hugeint_from_int64(((int32_t *)vector_t->data)[rowIndex]);
+          decimal.value = duckdb_hugeint_from_int64(((int32_t *)buf)[row_index]);
           break;
         case DUCKDB_TYPE_BIGINT:
-          decimal.value = duckdb_hugeint_from_int64(((int64_t *)vector_t->data)[rowIndex]);
+          decimal.value = duckdb_hugeint_from_int64(((int64_t *)buf)[row_index]);
           break;
         case DUCKDB_TYPE_UTINYINT:
-          decimal.value = duckdb_hugeint_from_uint64(((uint8_t *)vector_t->data)[rowIndex]);
+          decimal.value = duckdb_hugeint_from_uint64(((uint8_t *)buf)[row_index]);
           break;
         case DUCKDB_TYPE_USMALLINT:
-          decimal.value = duckdb_hugeint_from_uint64(((uint16_t *)vector_t->data)[rowIndex]);
+          decimal.value = duckdb_hugeint_from_uint64(((uint16_t *)buf)[row_index]);
           break;
         case DUCKDB_TYPE_UINTEGER:
-          decimal.value = duckdb_hugeint_from_uint64(((uint32_t *)vector_t->data)[rowIndex]);
+          decimal.value = duckdb_hugeint_from_uint64(((uint32_t *)buf)[row_index]);
           break;
         case DUCKDB_TYPE_UBIGINT:
-          decimal.value = duckdb_hugeint_from_uint64(((uint64_t *)vector_t->data)[rowIndex]);
+          decimal.value = duckdb_hugeint_from_uint64(((uint64_t *)buf)[row_index]);
           break;
         case DUCKDB_TYPE_HUGEINT:
-          decimal.value = ((duckdb_hugeint *)vector_t->data)[rowIndex];
+          decimal.value = ((duckdb_hugeint *)buf)[row_index];
           break;
         default:
           decimal.value = duckdb_hugeint_from_int64(0);
@@ -416,24 +394,24 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
     }
     case DUCKDB_TYPE_HUGEINT:
     {
-      duckdb_hugeint value = ((duckdb_hugeint *)vector_t->data)[rowIndex];
+      duckdb_hugeint value = ((duckdb_hugeint *)buf)[row_index];
       duckdb_value value_value = duckdb_create_hugeint(value);
       duckdb_value_to_zval_string(value_value, data);
       break;
     }
     case DUCKDB_TYPE_UHUGEINT:
     {
-      duckdb_uhugeint value = ((duckdb_uhugeint *)vector_t->data)[rowIndex];
+      duckdb_uhugeint value = ((duckdb_uhugeint *)buf)[row_index];
       duckdb_value value_value = duckdb_create_uhugeint(value);
       duckdb_value_to_zval_string(value_value, data);
       break;
     }
     case DUCKDB_TYPE_BLOB:
-      duckdb_string_t_to_zval(&((duckdb_string_t *)vector_t->data)[rowIndex], data);
+      duckdb_string_t_to_zval(&((duckdb_string_t *)buf)[row_index], data);
       break;
     case DUCKDB_TYPE_BIT:
     {
-      duckdb_string_t *string = &((duckdb_string_t *)vector_t->data)[rowIndex];
+      duckdb_string_t *string = &((duckdb_string_t *)buf)[row_index];
       uint32_t len = string->value.inlined.length;
       uint8_t *ptr = (uint8_t *)((len > 12)
         ? string->value.pointer.ptr
@@ -446,60 +424,59 @@ static void duckdb_value_to_zval(duckdb_vector_t *vector_t, idx_t rowIndex, zval
     }
     case DUCKDB_TYPE_BIGNUM:
     {
-      duckdb_string_t *string = &((duckdb_string_t *)vector_t->data)[rowIndex];
+      duckdb_string_t *string = &((duckdb_string_t *)buf)[row_index];
       zend_string *value_string = duckdb_string_t_to_bignum_string(string);
       ZVAL_STR(data, value_string);
       break;
     }
     case DUCKDB_TYPE_UUID:
     {
-      duckdb_hugeint uuid_hugeint = ((duckdb_hugeint *)vector_t->data)[rowIndex];
-      duckdb_uhugeint uuid_uhugeint;
-      uuid_uhugeint.lower = uuid_hugeint.lower;
+      duckdb_hugeint uuid_hugeint = ((duckdb_hugeint *)buf)[row_index];
+      int64_t upper = (uuid_hugeint.upper >= 0)
+        ? (uint64_t)(uuid_hugeint.upper) + (uint64_t)(INT64_MAX) + 1
+        : (uint64_t)(uuid_hugeint.upper + INT64_MAX + 1);
 
-      if (uuid_hugeint.upper >= 0) {
-        uuid_uhugeint.upper = (uint64_t)(uuid_hugeint.upper) + (uint64_t)(INT64_MAX) + 1;
-      } else {
-        uuid_uhugeint.upper = (uint64_t)(uuid_hugeint.upper + INT64_MAX + 1);
-      }
-
+      duckdb_uhugeint uuid_uhugeint = {.upper = upper, .lower = uuid_hugeint.lower};
       duckdb_value value = duckdb_create_uuid(uuid_uhugeint);
       duckdb_value_to_zval_string(value, data);
       break;
     }
     case DUCKDB_TYPE_INTERVAL:
     {
-      duckdb_interval value = ((duckdb_interval *)vector_t->data)[rowIndex];
+      duckdb_interval value = ((duckdb_interval *)buf)[row_index];
       duckdb_value value_value = duckdb_create_interval(value);
       duckdb_value_to_zval_string(value_value, data);
       break;
     }
     case DUCKDB_TYPE_UNION:
-      duckdb_union_to_zval(vector_t, rowIndex, data);
+      duckdb_union_to_zval(vector, row_index, data, logical_type);
       break;
     case DUCKDB_TYPE_SQLNULL:
     case DUCKDB_TYPE_ANY:
     default:
       ZVAL_NULL(data);
     }
+
+    duckdb_destroy_logical_type(&logical_type);
 }
 
-void duckval_to_zval(duckdb_vector_t *vector_t, idx_t row_index, zval *data)
+static inline bool duckdb_is_valid_row(uint64_t *validity_mask, idx_t row_index)
 {
-  if (vector_t->validity == NULL || duckdb_validity_row_is_valid(vector_t->validity, row_index)) {
-    duckdb_value_to_zval(vector_t, row_index, data);
-  } else {
-    ZVAL_NULL(data);
+  idx_t entry_idx = row_index / 64;
+  idx_t idx_in_entry = row_index % 64;
+  return validity_mask[entry_idx] & (1 << idx_in_entry);
+}
+
+void duckval_to_zval(duckdb_vector vector, idx_t row_index, zval *data)
+{
+  uint64_t *validity = duckdb_vector_get_validity(vector);
+
+  if (validity == NULL || duckdb_is_valid_row(validity, row_index)) {
+    duckdb_value_to_zval(vector, row_index, data);
+    return;
   }
-}
 
-void duckdb_init_temp_vector(duckdb_vector_t *vector_t, duckdb_vector vector)
-{
-  vector_t->logical_type = duckdb_vector_get_column_type(vector);
-  vector_t->type = duckdb_get_type_id(vector_t->logical_type);
-  vector_t->validity = duckdb_vector_get_validity(vector);
-  vector_t->data = duckdb_vector_get_data(vector);
-  vector_t->vector = vector;
+  ZVAL_NULL(data);
 }
 
 duckdb_value zval_to_duckval(zval *value)

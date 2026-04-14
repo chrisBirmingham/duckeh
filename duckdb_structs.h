@@ -28,14 +28,6 @@ typedef struct {
 } duckdb_result_t;
 
 typedef struct {
-  duckdb_vector vector;
-  duckdb_type type;
-  duckdb_logical_type logical_type;
-  void *data;
-  uint64_t *validity;
-} duckdb_vector_t;
-
-typedef struct {
   duckdb_timestamp timestamp;
   zend_object std;
 } duckdb_timestamp_t;
