@@ -70,7 +70,7 @@ AS_VAR_IF([PHP_DUCKDB], [no],, [
   PHP_SUBST(DUCKDB_SHARED_LIBADD)
 
   PHP_NEW_EXTENSION([duckdb],
-    [duckdb.c],
-    [$ext_shared],,
+    [duckdb.c duckdb_values.c],
+    [$ext_shared],
     [-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1])
 ])
