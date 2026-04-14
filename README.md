@@ -94,11 +94,9 @@ doesn't exist or the value provided to the bound parameter isn't a scalar value,
 
 ### Results
 
-The result class supports two forms for getting the queried data, the higher level fetch method and lower level chunk method
+#### Fetch Methods
 
-#### Fetch methods
-
-These methods closely map to the pdo statement methods of the same name. The `fetch` method will keep on returning data until 
+These methods map closely to the pdo statement methods of the same name. The `fetch` method will keep on returning data until
 it reaches the end of the returned data where it will return false. The `fetchAll` method will collect all the data and
 return it as one big array. 
 
@@ -118,40 +116,6 @@ $res = $db->query('SELECT episode_num FROM "Star_Trek-Season_1" limit 10')->fetc
 
 foreach ($res as $row) {
     echo $row['episode_num'] . "\n" ;
-}
-```
-
-### Chunk method
-
-This extension also supports duckdb's lower level chunk and vector datatypes. Chunks represent a horizontal slice of  
-the resulting query, and they hold a number of vectors. You can retrieve a chunk via the `fetchChunk`
-method, this method will keep on returning chunks until all data is exhausted. You can then process a chunk like so:
-
-```php
-$duckDB = new \DuckDB\DuckDB();
-
-$result = $duckDB->query("SELECT 'quack' as mycolumn1, 'quick' as mycolumn2;");
-
-# Get how many columns the response has
-$columns = $result->columnCount();
-
-# Keep on getting data until we've exhausted the input
-while ($dataChunk = $result->fetchChunk()) {
-    # Get how many rows are inside the chunk
-    $rows = $dataChunk->getSize();
-    
-    # Loop over all the rows in the chunk
-    for ($j = 0; $j < $rows; $j++) {
-        
-        for ($i = 0; $i < $columns; $i++) {
-            # Get the vector for the column
-            $vector = $dataChunk->getVector($i);
-            
-            # Get the value of the column for row $j
-            $data = $vector->getData($j);
-            var_dump($data);
-        }
-    }
 }
 ```
 

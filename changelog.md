@@ -1,3 +1,11 @@
+# 0.6.0
+
+* Remove lower level chunk and vector classes
+* Big refactoring of codebase
+  * Split values funcs into own file
+  * Removed vector_t type and associated funcs
+  * Moved common timestamp code into func
+
 # 0.5.3
 
 * Fix DuckDB::append not accepting correct number of arguments
