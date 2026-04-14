@@ -6,33 +6,22 @@ duckdb
 <?php
 $duckDB = new \DuckDB\DuckDB();
 
-$result = $duckDB->query("SELECT '1992-09-20'::DATE;");
+$result = $duckDB->query("SELECT '1992-09-20'::DATE as mycolumn1;");
+$data = $result->fetch()['mycolumn1'];
 
-$columns = $result->columnCount();
-while ($dataChunk = $result->fetchChunk()) {
-    $rows = $dataChunk->getSize();
-    for ($i = 0; $i < $columns; $i++) {
-        $vector = $dataChunk->getVector($i);
-        for ($r = 0; $r < $rows; $r++) {
-            $data = $vector->getData($r);
-            printf("Class: %s\n", get_class($data));
-            printf("Year: %s\n", $data->getYear());
-            printf("Month: %s\n", $data->getMonth());
-            printf("Day: %s\n", $data->getDay());
-            printf("Date string: %s\n", $data);
-            printf("Days since 1970-01-01: %s\n", $data->getDays());
-        }
-    }
-}
+printf("Class: %s\n", get_class($data));
+printf("Year: %s\n", $data->getYear());
+printf("Month: %s\n", $data->getMonth());
+printf("Day: %s\n", $data->getDay());
+printf("Date string: %s\n", $data);
+printf("Days since 1970-01-01: %s\n", $data->getDays());
 
-$infinityDates = $duckDB->query("SELECT 'infinity'::DATE as infinity_date, '-infinity'::DATE as negative_infinity_date, 'epoch'::DATE as finite_date;");
-$dataChunk = $infinityDates->fetchChunk();
-$data = $dataChunk->getVector(0)->getData(0);
-printf("Infinity value: %s\n", $data->infinity());
-$data = $dataChunk->getVector(1)->getData(0);
-printf("Infinity value: %s\n", $data->infinity());
-$data = $dataChunk->getVector(2)->getData(0);
-printf("Infinity value: %s\n", $data->infinity());
+$result = $duckDB->query("SELECT 'infinity'::DATE as infinity, '-infinity'::DATE as negative_infinity, 'epoch'::DATE as finite;");
+$row = $result->fetch();
+
+printf("Infinity value: %s\n", $row['infinity']->infinity());
+printf("Infinity value: %s\n", $row['negative_infinity']->infinity());
+printf("Infinity value: %s\n", $row['finite']->infinity());
 
 ?>
 --EXPECT--

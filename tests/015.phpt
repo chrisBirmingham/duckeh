@@ -6,19 +6,11 @@ duckdb
 <?php
 $duckDB = new \DuckDB\DuckDB();
 
-$result = $duckDB->query("SELECT '16 months'::INTERVAL;");
+$result = $duckDB->query("SELECT '16 months'::INTERVAL as mycolumn_interval;");
 
-$columns = $result->columnCount();
-while ($dataChunk = $result->fetchChunk()) {
-    $rows = $dataChunk->getSize();
-    for ($i = 0; $i < $columns; $i++) {
-        $vector = $dataChunk->getVector($i);
-        for ($r = 0; $r < $rows; $r++) {
-            $data = $vector->getData($r);
-            var_dump($data);
-        }
-    }
-}
+$row = $result->fetch();
+var_dump($row['mycolumn_interval']);
+
 ?>
 --EXPECT--
 string(15) "1 year 4 months"

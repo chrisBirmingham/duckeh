@@ -1,5 +1,5 @@
 --TEST--
-Test fetch data chunk
+Test fetch consecutive results
 --EXTENSIONS--
 duckdb
 --FILE--
@@ -7,12 +7,14 @@ duckdb
 $duckDB = new \DuckDB\DuckDB();
 
 $result = $duckDB->query("SELECT 'quack' as mycolumn");
+var_dump($result);
 
-while ($dataChunk = $result->fetchChunk()) {
-    var_dump($dataChunk);
-}
+$result = $duckDB->query("SELECT 'quick' as mycolumn");
+var_dump($result);
 
 ?>
 --EXPECT--
-object(DuckDB\DataChunk)#3 (0) {
+object(DuckDB\Result)#2 (0) {
+}
+object(DuckDB\Result)#3 (0) {
 }

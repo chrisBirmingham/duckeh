@@ -61,29 +61,9 @@ namespace DuckDB {
 
         public function rowCount(): int {}
 
-        public function fetchChunk(): DataChunk|false {}
-
         public function fetch(): array|false {}
 
         public function fetchAll(): array {}
-    }
-
-    /**
-     * @not-serializable
-     */
-    class DataChunk
-    {
-        public function getSize(): int {}
-
-        public function getVector(int $columnIndex): Vector {}
-    }
-
-    /**
-     * @not-serializable
-     */
-    class Vector
-    {
-        public function getData(int $rowIndex): mixed {}
     }
 
     /**

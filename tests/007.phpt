@@ -9,8 +9,9 @@ $duckDB = new \DuckDB\DuckDB();
 $result = $duckDB->query("SELECT * FROM repeat('quack', 1000000);");
 
 $rows = 0;
-while ($dataChunk = $result->fetchChunk()) {
-    $rows += $dataChunk->getSize();
+
+while ($result->fetch()) {
+    $rows++;
 }
 
 printf("%s rows", $rows)

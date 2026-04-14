@@ -4,23 +4,18 @@ Test decimal, blob, bit, time_tz
 duckdb
 --FILE--
 <?php
+
 $duckDB = new \DuckDB\DuckDB();
 
 $result = $duckDB->query("SELECT CAST('12.5' AS DECIMAL(4,1)) AS d, BLOB 'abcd' AS b, CAST('1010' AS BIT) AS bit, CAST('12:34:56+02' AS TIME WITH TIME ZONE) AS ttz;");
 
-$columns = $result->columnCount();
-while ($dataChunk = $result->fetchChunk()) {
-    $rows = $dataChunk->getSize();
-    for ($i = 0; $i < $columns; $i++) {
-        $vector = $dataChunk->getVector($i);
-        for ($r = 0; $r < $rows; $r++) {
-            $data = $vector->getData($r);
-            if ($data instanceof \DuckDB\Value\Time) {
-                echo $data, "\n";
-            } else {
-                var_dump($data);
-            }
-        }
+$row = $result->fetch();
+
+foreach ($row as $col) {
+    if ($col instanceof DuckDB\Value\Time) {
+        echo "$col\n";
+    } else {
+        var_dump($col);
     }
 }
 
