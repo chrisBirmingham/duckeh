@@ -6,7 +6,7 @@
 extern zend_module_entry duckdb_module_entry;
 # define phpext_duckdb_ptr &duckdb_module_entry
 
-# define PHP_DUCKDB_VERSION "0.6.0"
+# define PHP_DUCKDB_VERSION "0.6.1"
 
 # if defined(ZTS) && defined(COMPILE_DL_DUCKDB)
 ZEND_TSRMLS_CACHE_EXTERN()

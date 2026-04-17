@@ -1,3 +1,12 @@
+# 0.6.1
+
+* Fixed union conversion - It was reporting the tag value, not the actual value of the union
+  * Added test for unions
+* Use `duckdb_column_type` to get the column value up front.
+  * Means we don't have to calculate the value ourselves for each column value
+  * Only calculate container types member type when needed instead everytime we retrive a member type
+* Moved some array logic into common function
+
 # 0.6.0
 
 * Remove lower level chunk and vector classes
