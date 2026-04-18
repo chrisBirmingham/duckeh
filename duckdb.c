@@ -15,6 +15,7 @@
 #ifndef ZEND_ACC_NOT_SERIALIZABLE
 #define ZEND_ACC_NOT_SERIALIZABLE 0
 #endif
+#include <duckdb.h>
 #include "duckdb_arginfo.h"
 #include "zend_exceptions.h"
 #include "zend_interfaces.h"
@@ -148,15 +149,55 @@ PHP_METHOD(DuckDB_DuckDB, __construct)
   duckdb_t->connection = connection;
 }
 
-static void duckdb_run_query(INTERNAL_FUNCTION_PARAMETERS, bool is_prepared)
+static inline void duckdb_build_result(duckdb_result res, zval *return_value)
+{
+  object_init_ex(return_value, duckdb_result_class_entry);
+  duckdb_result_t *result_t = Z_DUCKDB_RESULT_P(return_value);
+  result_t->result = res;
+}
+
+static inline void result_error(duckdb_result res)
+{
+  zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(&res), duckdb_result_error_type(&res));
+  duckdb_destroy_result(&res);
+}
+
+static zend_result duckdb_run_prepare(duckdb_connection connection, const char* query, zval *return_value)
+{
+  duckdb_prepared_statement stmt;
+
+  if (duckdb_prepare(connection, query, &stmt) == DuckDBError) {
+    zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(stmt), 0);
+    duckdb_destroy_prepare(&stmt);
+    return FAILURE;
+  }
+
+  object_init_ex(return_value, duckdb_prepared_statement_class_entry);
+  duckdb_prepared_statement_t *prepared_statement_t = Z_PREPARED_STATEMENT_P(return_value);
+  prepared_statement_t->stmt = stmt;
+  return SUCCESS;
+}
+
+static zend_result duckdb_run_query(duckdb_connection connection, const char* query, zval *return_value)
+{
+  duckdb_result res;
+
+  if (duckdb_query(connection, query, &res) == DuckDBError) {
+    result_error(res);
+    return FAILURE;
+  }
+
+  duckdb_build_result(res, return_value);
+  return SUCCESS;
+}
+
+static void duckdb_execute(INTERNAL_FUNCTION_PARAMETERS, bool is_prepared)
 {
   zval *object = ZEND_THIS;
   duckdb_t *duckdb_t;
-  duckdb_state state;
-  duckdb_prepared_statement stmt;
-  duckdb_result res;
   char *query = NULL;
   size_t query_len = 0;
+  zend_result res;
 
   ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_STRING(query, query_len)
@@ -164,47 +205,29 @@ static void duckdb_run_query(INTERNAL_FUNCTION_PARAMETERS, bool is_prepared)
 
   duckdb_t = Z_DUCKDB_P(object);
 
-  state = is_prepared
-    ? duckdb_prepare(duckdb_t->connection, query, &stmt)
-    : duckdb_query(duckdb_t->connection, query, &res);
+  res = is_prepared
+    ? duckdb_run_prepare(duckdb_t->connection, query, return_value)
+    : duckdb_run_query(duckdb_t->connection, query, return_value);
 
-  if (state == DuckDBError) {
-    if (is_prepared) {
-      zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(stmt), 0);
-      duckdb_destroy_prepare(&stmt);
-    } else {
-      zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(&res), 0);
-      duckdb_destroy_result(&res);
-    }
-
+  if (res == FAILURE) {
     RETURN_THROWS();
-  }
-
-  if (is_prepared) {
-    object_init_ex(return_value, duckdb_prepared_statement_class_entry);
-    duckdb_prepared_statement_t *prepared_statement_t = Z_PREPARED_STATEMENT_P(return_value);
-    prepared_statement_t->stmt = stmt;
-  } else {
-    object_init_ex(return_value, duckdb_result_class_entry);
-    duckdb_result_t *result_t = Z_DUCKDB_RESULT_P(return_value);
-    result_t->result = res;
   }
 }
 
 PHP_METHOD(DuckDB_DuckDB, query)
 {
-  duckdb_run_query(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+  duckdb_execute(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
 PHP_METHOD(DuckDB_DuckDB, prepare)
 {
-  duckdb_run_query(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+  duckdb_execute(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 static void appender_error(duckdb_appender appender)
 {
   duckdb_error_data err = duckdb_appender_error_data(appender);
-  zend_throw_exception(duckdb_append_exception_class_entry, duckdb_error_data_message(err), 0);
+  zend_throw_exception(duckdb_append_exception_class_entry, duckdb_error_data_message(err), duckdb_error_data_error_type(err));
   duckdb_destroy_error_data(&err);
 }
 
@@ -341,7 +364,6 @@ PHP_METHOD(DuckDB_PreparedStatement, execute)
 {
   zval *object = ZEND_THIS;
   duckdb_prepared_statement_t *prepared_statement_t;
-  duckdb_result_t *result_t;
   duckdb_result res;
   zval *params = NULL;
   zend_ulong idx;
@@ -364,14 +386,11 @@ PHP_METHOD(DuckDB_PreparedStatement, execute)
   }
 
   if (duckdb_execute_prepared(prepared_statement_t->stmt, &res) == DuckDBError) {
-    zend_throw_exception(duckdb_query_exception_class_entry, duckdb_result_error(&res), 0);
-    duckdb_destroy_result(&res);
+    result_error(res);
     RETURN_THROWS();
   }
 
-  object_init_ex(return_value, duckdb_result_class_entry);
-  result_t = Z_DUCKDB_RESULT_P(return_value);
-  result_t->result = res;
+  duckdb_build_result(res, return_value);
 }
 
 static zend_object *duckdb_appender_new(zend_class_entry *ce)
@@ -898,6 +917,8 @@ PHP_RINIT_FUNCTION(duckdb)
 
 PHP_MINIT_FUNCTION(duckdb)
 {
+  register_duckdb_symbols(module_number);
+
   duckdb_exception_class_entry = register_class_DuckDB_DuckDBException(zend_ce_exception);
   duckdb_connection_exception_class_entry = register_class_DuckDB_ConnectionException(duckdb_exception_class_entry);
   duckdb_query_exception_class_entry = register_class_DuckDB_QueryException(duckdb_exception_class_entry);

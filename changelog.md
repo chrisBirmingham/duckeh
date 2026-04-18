@@ -1,3 +1,10 @@
+# 0.6.2
+
+* Actually register extension constants
+* Added duckdb error constants
+* Provide the error code where avaiable to thrown exception
+* Forgot to actually add union tests in last release
+
 # 0.6.1
 
 * Fixed union conversion - It was reporting the tag value, not the actual value of the union
