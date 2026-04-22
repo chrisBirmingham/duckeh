@@ -24,4 +24,4 @@ foreach ($row as $col) {
 float(12.5)
 string(4) "abcd"
 string(4) "1010"
-12:34:56.0
+12:34:56+02

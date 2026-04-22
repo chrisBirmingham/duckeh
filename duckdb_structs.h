@@ -38,7 +38,11 @@ typedef struct {
 } duckdb_date_t;
 
 typedef struct {
-  duckdb_time_struct time;
+  bool tz;
+  union {
+    duckdb_time time;
+    duckdb_time_tz time_tz;
+  };
   zend_object std;
 } duckdb_time_t;
 

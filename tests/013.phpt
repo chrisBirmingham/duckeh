@@ -27,10 +27,10 @@ printf("Infinity value: %s\n", $row['finite']->infinity());
 --EXPECT--
 1521-04-23 12:45:17.1234
 Date: 1521-04-23
-Time: 12:45:17.123400
+Time: 12:45:17.1234
 1521-04-17 12:45:17.1234
 Date: 1521-04-17
-Time: 12:45:17.123400
+Time: 12:45:17.1234
 Infinity value: 1
 Infinity value: -1
 Infinity value: 0

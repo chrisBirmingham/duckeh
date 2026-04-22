@@ -656,32 +656,30 @@ PHP_METHOD(DuckDB_Value_Timestamp, infinity)
     RETURN_LONG(PHP_DUCKDB_FINITE);
   }
 
-  if (timestamp_t->timestamp.micros > 0) {
-    RETURN_LONG(PHP_DUCKDB_POSITIVE_INFINITY);
-  }
-
-  RETURN_LONG(PHP_DUCKDB_NEGATIVE_INFINITY);
+  RETURN_LONG((timestamp_t->timestamp.micros > 0)
+    ? PHP_DUCKDB_POSITIVE_INFINITY
+    : PHP_DUCKDB_NEGATIVE_INFINITY);
 }
 
 static void timestamp_get_sub(INTERNAL_FUNCTION_PARAMETERS, bool get_time)
 {
   zval *object = ZEND_THIS;
   duckdb_timestamp_t *timestamp_t;
-  duckdb_timestamp_struct timestamp_struct;
+  duckdb_timestamp_struct ts;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
   timestamp_t = Z_DUCKDB_TIMESTAMP_P(object);
-  timestamp_struct = duckdb_from_timestamp(timestamp_t->timestamp);
+  ts = duckdb_from_timestamp(timestamp_t->timestamp);
 
   if (get_time) {
     object_init_ex(return_value, duckdb_time_class_entry);
     duckdb_time_t *time_t = Z_DUCKDB_TIME_P(return_value);
-    time_t->time = timestamp_struct.time;
+    time_t->time = duckdb_to_time(ts.time);
   } else {
     object_init_ex(return_value, duckdb_date_class_entry);
     duckdb_date_t *date_t = Z_DUCKDB_DATE_P(return_value);
-    date_t->date = duckdb_to_date(timestamp_struct.date);
+    date_t->date = duckdb_to_date(ts.date);
   }
 }
 
@@ -705,8 +703,7 @@ PHP_METHOD(DuckDB_Value_Timestamp, __toString)
 
   timestamp_t = Z_DUCKDB_TIMESTAMP_P(object);
   time = duckdb_create_timestamp(timestamp_t->timestamp);
-  RETURN_STRING(duckdb_get_varchar(time));
-  duckdb_destroy_value(&time);
+  duckdb_value_to_zval_string(time, return_value);
 }
 
 static zend_object *duckdb_date_new(zend_class_entry *ce)
@@ -743,11 +740,9 @@ PHP_METHOD(DuckDB_Value_Date, infinity)
     RETURN_LONG(PHP_DUCKDB_FINITE);
   }
 
-  if (date_t->date.days > 0) {
-    RETURN_LONG(PHP_DUCKDB_POSITIVE_INFINITY);
-  }
-
-  RETURN_LONG(PHP_DUCKDB_NEGATIVE_INFINITY);
+  RETURN_LONG((date_t->date.days > 0)
+    ? PHP_DUCKDB_POSITIVE_INFINITY
+    : PHP_DUCKDB_NEGATIVE_INFINITY);
 }
 
 static void date_get_prop(INTERNAL_FUNCTION_PARAMETERS, char type)
@@ -803,14 +798,13 @@ PHP_METHOD(DuckDB_Value_Date, __toString)
 {
   zval *object = ZEND_THIS;
   duckdb_date_t *date_t;
-  duckdb_value date;
+  duckdb_value value;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
   date_t = Z_DUCKDB_DATE_P(object);
-  date = duckdb_create_date(date_t->date);
-  RETURN_STRING(duckdb_get_varchar(date));
-  duckdb_destroy_value(&date);
+  value = duckdb_create_date(date_t->date);
+  duckdb_value_to_zval_string(value, return_value);
 }
 
 static zend_object *duckdb_time_new(zend_class_entry *ce)
@@ -819,6 +813,7 @@ static zend_object *duckdb_time_new(zend_class_entry *ce)
   zend_object_std_init(&time->std, ce);
   object_properties_init(&time->std, ce);
   time->std.handlers = &time_object_handlers;
+  time->tz = false;
   return &time->std;
 }
 
@@ -838,32 +833,35 @@ static void time_get_prop(INTERNAL_FUNCTION_PARAMETERS, char type)
 {
   zval *object = ZEND_THIS;
   duckdb_time_t *time_t;
+  duckdb_time_struct time;
   zend_long prop = 0;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
   time_t = Z_DUCKDB_TIME_P(object);
+  time = (time_t->tz)
+    ? duckdb_from_time_tz(time_t->time_tz).time
+    : duckdb_from_time(time_t->time);
 
   switch (type) {
     case 'h':
-      prop = time_t->time.hour;
+      prop = time.hour;
       break;
     case 'm':
-      prop = time_t->time.min;
+      prop = time.min;
       break;
     case 's':
-      prop = time_t->time.sec;
+      prop = time.sec;
       break;
     case 'i':
-      prop = time_t->time.micros;
+      prop = time.micros;
       break;
     case 'I':
-      prop = duckdb_to_time(time_t->time).micros;
+      prop = (time_t->tz) ? duckdb_to_time(time).micros : time_t->time.micros;
   }
 
   RETURN_LONG(prop);
 }
-
 
 PHP_METHOD(DuckDB_Value_Time, getHour)
 {
@@ -894,16 +892,17 @@ PHP_METHOD(DuckDB_Value_Time, __toString)
 {
   zval *object = ZEND_THIS;
   duckdb_time_t *time_t;
-  duckdb_time_struct time;
-  zend_string *str = NULL;
+  duckdb_value value;
 
   ZEND_PARSE_PARAMETERS_NONE();
 
   time_t = Z_DUCKDB_TIME_P(object);
-  time = time_t->time;
 
-  str = zend_strpprintf(0, "%02d:%02d:%02d.%d", time.hour, time.min, time.sec, time.micros);
-  RETURN_STR(str);
+  value = (time_t->tz)
+    ? duckdb_create_time_tz_value(time_t->time_tz)
+    : duckdb_create_time(time_t->time);
+
+  duckdb_value_to_zval_string(value, return_value);
 }
 
 PHP_RINIT_FUNCTION(duckdb)
