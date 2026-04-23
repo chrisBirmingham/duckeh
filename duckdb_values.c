@@ -101,22 +101,19 @@ static inline duckdb_hugeint duckdb_hugeint_from_uint64(uint64_t input)
 
 static void duckdb_time_to_zval(duckdb_type type, void* buf, idx_t row_index, zval *data)
 {
-  object_init_ex(data, duckdb_time_class_entry);
-  duckdb_time_t *time_t = Z_DUCKDB_TIME_P(data);
-
   switch (type) {
     case DUCKDB_TYPE_TIME_TZ:
-      time_t->time_tz = ((duckdb_time_tz *)buf)[row_index];
-      time_t->tz = true;
+      new_time_tz(data, ((duckdb_time_tz *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_TIME_NS:
     {
       duckdb_time_ns time_ns = ((duckdb_time_ns *)buf)[row_index];
-      time_t->time.micros = (time_ns.nanos == 0) ? 0 : time_ns.nanos / 1000;
+      duckdb_time time = {.micros = (time_ns.nanos == 0) ? 0 : time_ns.nanos / 1000 };
+      new_time(data, time);
       break;
     }
     default:
-      time_t->time = ((duckdb_time *)buf)[row_index];
+      new_time(data, ((duckdb_time *)buf)[row_index]);
   }
 }
 
@@ -129,31 +126,32 @@ static inline duckdb_timestamp duckdb_timestamp_to_timestamp(duckdb_value value)
 
 static void duckdb_timestamp_to_zval(duckdb_type type, void *buf, idx_t row_index, zval *data)
 {
-  object_init_ex(data, duckdb_timestamp_class_entry);
-  duckdb_timestamp_t *timestamp_t = Z_DUCKDB_TIMESTAMP_P(data);
+  duckdb_timestamp timestamp;
 
   switch (type) {
     case DUCKDB_TYPE_TIMESTAMP_S:
     {
       duckdb_timestamp_s timestamp_s = ((duckdb_timestamp_s *)buf)[row_index];
-      timestamp_t->timestamp = duckdb_timestamp_to_timestamp(duckdb_create_timestamp_s(timestamp_s));
+      timestamp = duckdb_timestamp_to_timestamp(duckdb_create_timestamp_s(timestamp_s));
       break;
     }
     case DUCKDB_TYPE_TIMESTAMP_MS:
     {
       duckdb_timestamp_ms timestamp_ms = ((duckdb_timestamp_ms *)buf)[row_index];
-      timestamp_t->timestamp = duckdb_timestamp_to_timestamp(duckdb_create_timestamp_ms(timestamp_ms));
+      timestamp = duckdb_timestamp_to_timestamp(duckdb_create_timestamp_ms(timestamp_ms));
       break;
     }
     case DUCKDB_TYPE_TIMESTAMP_NS:
     {
       duckdb_timestamp_ns timestamp_ns = ((duckdb_timestamp_ns *)buf)[row_index];
-      timestamp_t->timestamp = duckdb_timestamp_to_timestamp(duckdb_create_timestamp_ns(timestamp_ns));
+      timestamp = duckdb_timestamp_to_timestamp(duckdb_create_timestamp_ns(timestamp_ns));
       break;
     }
     default:
-      timestamp_t->timestamp = ((duckdb_timestamp *)buf)[row_index];
+      timestamp = ((duckdb_timestamp *)buf)[row_index];
   }
+
+  new_timestamp(data, timestamp);
 }
 
 static void duckdb_struct_vector_to_array(duckdb_vector vector, idx_t row_index, zval *array)
@@ -395,12 +393,8 @@ static void duckdb_value_to_zval(duckdb_vector vector, duckdb_type type, idx_t r
       ZVAL_DOUBLE(data, ((double *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_DATE:
-    {
-      object_init_ex(data, duckdb_date_class_entry);
-      duckdb_date_t *date_t = Z_DUCKDB_DATE_P(data);
-      date_t->date = ((duckdb_date *)buf)[row_index];
+      new_date(data, ((duckdb_date *)buf)[row_index]);
       break;
-    }
     case DUCKDB_TYPE_TIME:
     case DUCKDB_TYPE_TIME_NS:
     case DUCKDB_TYPE_TIME_TZ:

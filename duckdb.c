@@ -673,13 +673,9 @@ static void timestamp_get_sub(INTERNAL_FUNCTION_PARAMETERS, bool get_time)
   ts = duckdb_from_timestamp(timestamp_t->timestamp);
 
   if (get_time) {
-    object_init_ex(return_value, duckdb_time_class_entry);
-    duckdb_time_t *time_t = Z_DUCKDB_TIME_P(return_value);
-    time_t->time = duckdb_to_time(ts.time);
+    new_time(return_value, duckdb_to_time(ts.time));
   } else {
-    object_init_ex(return_value, duckdb_date_class_entry);
-    duckdb_date_t *date_t = Z_DUCKDB_DATE_P(return_value);
-    date_t->date = duckdb_to_date(ts.date);
+    new_date(return_value, duckdb_to_date(ts.date));
   }
 }
 
@@ -813,7 +809,6 @@ static zend_object *duckdb_time_new(zend_class_entry *ce)
   zend_object_std_init(&time->std, ce);
   object_properties_init(&time->std, ce);
   time->std.handlers = &time_object_handlers;
-  time->tz = false;
   return &time->std;
 }
 
