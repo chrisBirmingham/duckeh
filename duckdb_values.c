@@ -101,19 +101,19 @@ static inline duckdb_hugeint duckdb_hugeint_from_uint64(uint64_t input)
 
 static void duckdb_time_to_zval(duckdb_type type, void* buf, idx_t row_index, zval *data)
 {
-  switch (type) {
-    case DUCKDB_TYPE_TIME_TZ:
-      new_time_tz(data, ((duckdb_time_tz *)buf)[row_index]);
-      break;
-    case DUCKDB_TYPE_TIME_NS:
-    {
+  if (type == DUCKDB_TYPE_TIME_TZ) {
+    new_time_tz(data, ((duckdb_time_tz *)buf)[row_index]);
+  } else {
+    duckdb_time time;
+
+    if (type == DUCKDB_TYPE_TIME_NS) {
       duckdb_time_ns time_ns = ((duckdb_time_ns *)buf)[row_index];
-      duckdb_time time = {.micros = (time_ns.nanos == 0) ? 0 : time_ns.nanos / 1000 };
-      new_time(data, time);
-      break;
+      time.micros = (time_ns.nanos == 0) ? 0 : time_ns.nanos / 1000;
+    } else {
+      time = ((duckdb_time *)buf)[row_index];
     }
-    default:
-      new_time(data, ((duckdb_time *)buf)[row_index]);
+
+    new_time(data, time);
   }
 }
 
