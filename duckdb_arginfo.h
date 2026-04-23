@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9985d6993f8410cc885d27e5570255d4397b61d0 */
+ * Stub hash: 4a8c299927d7c46b92cc331c43b0f11de6a84ed4 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DuckDB_DuckDB___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, path, IS_STRING, 1, "null")
@@ -80,6 +80,8 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_DuckDB_Value_Time_getSeconds arginfo_class_DuckDB_Result_columnCount
 
+#define arginfo_class_DuckDB_Value_Time_getOffset arginfo_class_DuckDB_Result_columnCount
+
 #define arginfo_class_DuckDB_Value_Time_getMicroseconds arginfo_class_DuckDB_Result_columnCount
 
 #define arginfo_class_DuckDB_Value_Time___toString arginfo_class_DuckDB_Value_Timestamp___toString
@@ -111,6 +113,7 @@ ZEND_METHOD(DuckDB_Value_Time, getTotalMicroseconds);
 ZEND_METHOD(DuckDB_Value_Time, getHour);
 ZEND_METHOD(DuckDB_Value_Time, getMinutes);
 ZEND_METHOD(DuckDB_Value_Time, getSeconds);
+ZEND_METHOD(DuckDB_Value_Time, getOffset);
 ZEND_METHOD(DuckDB_Value_Time, getMicroseconds);
 ZEND_METHOD(DuckDB_Value_Time, __toString);
 
@@ -166,6 +169,7 @@ static const zend_function_entry class_DuckDB_Value_Time_methods[] = {
 	ZEND_ME(DuckDB_Value_Time, getHour, arginfo_class_DuckDB_Value_Time_getHour, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_Value_Time, getMinutes, arginfo_class_DuckDB_Value_Time_getMinutes, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_Value_Time, getSeconds, arginfo_class_DuckDB_Value_Time_getSeconds, ZEND_ACC_PUBLIC)
+	ZEND_ME(DuckDB_Value_Time, getOffset, arginfo_class_DuckDB_Value_Time_getOffset, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_Value_Time, getMicroseconds, arginfo_class_DuckDB_Value_Time_getMicroseconds, ZEND_ACC_PUBLIC)
 	ZEND_ME(DuckDB_Value_Time, __toString, arginfo_class_DuckDB_Value_Time___toString, ZEND_ACC_PUBLIC)
 	ZEND_FE_END

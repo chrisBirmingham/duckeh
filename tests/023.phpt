@@ -13,7 +13,7 @@ $row = $result->fetch();
 
 foreach ($row as $col) {
     if ($col instanceof DuckDB\Value\Time) {
-        echo "$col\n";
+        echo "$col offset {$col->getOffset()}\n";
     } else {
         var_dump($col);
     }
@@ -24,4 +24,4 @@ foreach ($row as $col) {
 float(12.5)
 string(4) "abcd"
 string(4) "1010"
-12:34:56.0
+12:34:56+02 offset 7200

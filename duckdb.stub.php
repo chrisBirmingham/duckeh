@@ -429,6 +429,8 @@ namespace DuckDB\Value {
 
         public function getSeconds(): int {}
 
+        public function getOffset(): int {}
+
         public function getMicroseconds(): int {}
 
         public function __toString(): string {}

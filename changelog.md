@@ -1,3 +1,14 @@
+# 0.6.3
+
+The datetime patch
+
+* Changed tostring logic for printing all date time types
+  * Let duckdb handle the tostring logic for everything
+  * Fixed memory leak in tostring methods
+* Include timezone logic in `Time` class where available
+* Added test all types which was originally the printall test back into the codebase
+* Added `getOffset` method to `Time` class
+
 # 0.6.2
 
 * Actually register extension constants
