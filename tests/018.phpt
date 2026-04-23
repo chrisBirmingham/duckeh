@@ -17,6 +17,7 @@ printf("Parts\n");
 printf("Hour: %s\n", $data->getHour());
 printf("Minutes: %s\n", $data->getMinutes());
 printf("Seconds: %s\n", $data->getSeconds());
+printf("Offset: %s\n", $data->getOffset());
 printf("Microseconds: %s\n", $data->getMicroseconds());
 
 ?>
@@ -27,4 +28,5 @@ Parts
 Hour: 11
 Minutes: 30
 Seconds: 0
+Offset: 0
 Microseconds: 123456

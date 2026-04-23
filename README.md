@@ -152,3 +152,8 @@ If you want to clear the appended rows, you can call the `clear` method.
 > [!CAUTION]
 > Care should be taken when inserting rows into the appender. Should an exception be thrown because of type mismatches,
 > the appender can be left in an incomplete state. In such a situation, it's best that you call the clear method
+
+### Timezone Considerations
+
+For some reason, when the duckdb api retrieves a timestamp field, if the field contains timezone information, it will instead
+return's a timestamp datatype thus loosing the timezone information. This problem does not affect the Time field type.

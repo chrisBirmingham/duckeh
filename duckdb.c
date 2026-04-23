@@ -851,6 +851,9 @@ static void time_get_prop(INTERNAL_FUNCTION_PARAMETERS, char type)
     case 'i':
       prop = time.micros;
       break;
+    case 'o':
+      prop = (time_t->tz) ? duckdb_from_time_tz(time_t->time_tz).offset : 0;
+      break;
     case 'I':
       prop = (time_t->tz) ? duckdb_to_time(time).micros : time_t->time.micros;
   }
@@ -876,6 +879,11 @@ PHP_METHOD(DuckDB_Value_Time, getSeconds)
 PHP_METHOD(DuckDB_Value_Time, getMicroseconds)
 {
   time_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'i');
+}
+
+PHP_METHOD(DuckDB_Value_Time, getOffset)
+{
+  time_get_prop(INTERNAL_FUNCTION_PARAM_PASSTHRU, 'o');
 }
 
 PHP_METHOD(DuckDB_Value_Time, getTotalMicroseconds)
