@@ -1,3 +1,8 @@
+# 0.6.4
+
+* Update config.m4 to be a bit more rubust.
+  * Add check for the minimum php version
+
 # 0.6.3
 
 The datetime patch

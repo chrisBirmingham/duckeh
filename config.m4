@@ -1,9 +1,5 @@
 dnl Autotools config.m4 for PHP extension duckdb
 
-dnl Comments in this file start with the string 'dnl' (discard to next line).
-dnl Remove where necessary.
-
-dnl Otherwise use the '--enable-duckdb' configure option:
 PHP_ARG_ENABLE([duckdb],
   [whether to enable duckdb support],
   [AS_HELP_STRING([--enable-duckdb],
@@ -17,60 +13,43 @@ PHP_ARG_WITH([duckdb-dir],
   [no],
   [no])
 
-AS_VAR_IF([PHP_DUCKDB], [no],, [
+if test "$PHP_DUCKDB" != "no"; then
+  AC_MSG_CHECKING(PHP version is at least 8.1.0)
 
-  AC_DEFINE([HAVE_DUCKDB], [1],
-    [Define to 1 if the PHP extension 'duckdb' is available.])
-
-  dnl Candidate locations:
-  dnl - bundled artifacts under ext/lib (CI)
-  dnl - standard system prefixes (/opt/homebrew, /usr/local, /usr, /opt/local)
-  DUCKDB_DIRS=""
-  if test "$PHP_DUCKDB_DIR" != "no" && test "$PHP_DUCKDB_DIR" != "yes"; then
-    DUCKDB_DIRS="$PHP_DUCKDB_DIR"
+  if test -z "$PHP_VERSION_ID"; then
+    if test -z "$PHP_CONFIG"; then
+      AC_MSG_ERROR(php-config not found)
+    fi
+    PHP_VERNUM=`$PHP_CONFIG --vernum`
   else
-    DUCKDB_DIRS="$ext_srcdir/lib /opt/homebrew /usr/local /usr /opt/local"
+    PHP_VERNUM="$PHP_VERSION_ID"
   fi
 
-  DUCKDB_INCLUDE_DIR=""
-  DUCKDB_LIB_DIR=""
-  for DUCKDB_DIR in $DUCKDB_DIRS; do
-    CANDIDATE_INCLUDE=""
-    if test -f "$DUCKDB_DIR/duckdb.h"; then
-      CANDIDATE_INCLUDE="$DUCKDB_DIR"
-    elif test -f "$DUCKDB_DIR/include/duckdb.h"; then
-      CANDIDATE_INCLUDE="$DUCKDB_DIR/include"
-    fi
-
-    CANDIDATE_LIB=""
-    if test -f "$DUCKDB_DIR/libduckdb.a" || test -f "$DUCKDB_DIR/libduckdb.so" || test -f "$DUCKDB_DIR/libduckdb.dylib"; then
-      CANDIDATE_LIB="$DUCKDB_DIR"
-    elif test -f "$DUCKDB_DIR/lib/libduckdb.a" || test -f "$DUCKDB_DIR/lib/libduckdb.so" || test -f "$DUCKDB_DIR/lib/libduckdb.dylib"; then
-      CANDIDATE_LIB="$DUCKDB_DIR/lib"
-    fi
-
-    if test -n "$CANDIDATE_INCLUDE" && test -n "$CANDIDATE_LIB"; then
-      DUCKDB_INCLUDE_DIR="$CANDIDATE_INCLUDE"
-      DUCKDB_LIB_DIR="$CANDIDATE_LIB"
-      break
-    fi
-  done
-
-  if test -z "$DUCKDB_INCLUDE_DIR"; then
-    AC_MSG_ERROR([duckdb.h not found. Install libduckdb into a standard prefix (e.g. /usr/local or /opt/homebrew) or use --with-duckdb-dir.])
+  if test $PHP_VERNUM -lt 80100; then
+    AC_MSG_ERROR(PHP Version is below required 8.1.0)
   fi
 
-  if test -z "$DUCKDB_LIB_DIR"; then
-    AC_MSG_ERROR([libduckdb not found. Install libduckdb into a standard prefix (e.g. /usr/local or /opt/homebrew) or use --with-duckdb-dir.])
+  if test "$PHP_DUCKDB_DIR" != "no"; then
+    if test -r "$PHP_DUCKDB_DIR/include/duckdb.h"; then
+      DUCKDB_DIR="$PHP_DUCKDB_DIR"
+    fi
+  else
+    for dir in /opt/homebrew /usr/local /usr; do
+      AC_MSG_RESULT(checking in $dir)
+      if test -r "$dir/include/duckdb.h"; then
+        DUCKDB_DIR=$dir
+        AC_MSG_RESULT(found in $dir)
+        break
+      fi
+    done
   fi
 
-  PHP_ADD_INCLUDE([$DUCKDB_INCLUDE_DIR])
+  if test -z "$DUCKDB_DIR"; then
+    AC_MSG_ERROR(Cannot find libduckdb library)
+  fi
 
-  PHP_ADD_LIBRARY_WITH_PATH(duckdb, [$DUCKDB_LIB_DIR], DUCKDB_SHARED_LIBADD)
+  PHP_ADD_INCLUDE($DUCKDB_DIR/include)
+  PHP_ADD_LIBRARY_WITH_PATH(duckdb, $DUCKDB_DIR/lib, DUCKDB_SHARED_LIBADD)
   PHP_SUBST(DUCKDB_SHARED_LIBADD)
-
-  PHP_NEW_EXTENSION([duckdb],
-    [duckdb.c duckdb_values.c],
-    [$ext_shared],
-    [-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1])
-])
+  PHP_NEW_EXTENSION(duckdb, duckdb.c duckdb_values.c, $ext_shared, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
+fi
