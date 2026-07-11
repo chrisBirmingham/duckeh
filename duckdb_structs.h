@@ -28,25 +28,6 @@ typedef struct {
   zend_object std;
 } duckdb_result_t;
 
-typedef struct {
-  duckdb_timestamp timestamp;
-  zend_object std;
-} duckdb_timestamp_t;
-
-typedef struct {
-  duckdb_date date;
-  zend_object std;
-} duckdb_date_t;
-
-typedef struct {
-  bool tz;
-  union {
-    duckdb_time time;
-    duckdb_time_tz time_tz;
-  };
-  zend_object std;
-} duckdb_time_t;
-
 /* Type transformers */
 static inline duckdb_t *duckdb_t_from_obj(zend_object *obj)
 {
@@ -68,67 +49,16 @@ static inline duckdb_result_t *duckdb_result_t_from_obj(zend_object *obj)
   return (duckdb_result_t *)((char *)(obj)-XtOffsetOf(duckdb_result_t, std));
 }
 
-static inline duckdb_timestamp_t *duckdb_timestamp_t_from_obj(zend_object *obj)
-{
-  return (duckdb_timestamp_t *)((char *)(obj)-XtOffsetOf(duckdb_timestamp_t, std));
-}
-
-static inline duckdb_date_t *duckdb_date_t_from_obj(zend_object *obj)
-{
-  return (duckdb_date_t *)((char *)(obj)-XtOffsetOf(duckdb_date_t, std));
-}
-
-static inline duckdb_time_t *duckdb_time_t_from_obj(zend_object *obj)
-{
-  return (duckdb_time_t *)((char *)(obj)-XtOffsetOf(duckdb_time_t, std));
-}
-
 #define Z_DUCKDB_P(zv) duckdb_t_from_obj(Z_OBJ_P(zv))
 #define Z_PREPARED_STATEMENT_P(zv) prepared_statement_t_from_obj(Z_OBJ_P(zv))
 #define Z_APPENDER_P(zv) appender_t_from_obj(Z_OBJ_P(zv))
 #define Z_DUCKDB_RESULT_P(zv) duckdb_result_t_from_obj(Z_OBJ_P(zv))
-#define Z_DUCKDB_TIMESTAMP_P(zv) duckdb_timestamp_t_from_obj(Z_OBJ_P(zv))
-#define Z_DUCKDB_DATE_P(zv) duckdb_date_t_from_obj(Z_OBJ_P(zv))
-#define Z_DUCKDB_TIME_P(zv) duckdb_time_t_from_obj(Z_OBJ_P(zv))
 
 extern zend_class_entry *duckdb_class_entry;
 extern zend_class_entry *duckdb_prepared_statement_class_entry;
 extern zend_class_entry *duckdb_appender_class_entry;
 extern zend_class_entry *duckdb_result_class_entry;
-extern zend_class_entry *duckdb_timestamp_class_entry;
-extern zend_class_entry *duckdb_date_class_entry;
-extern zend_class_entry *duckdb_time_class_entry;
 extern zend_class_entry *duckdb_exception_class_entry;
 extern zend_class_entry *duckdb_connection_exception_class_entry;
 extern zend_class_entry *duckdb_query_exception_class_entry;
 extern zend_class_entry *duckdb_append_exception_class_entry;
-
-static inline void new_timestamp(zval *data, duckdb_timestamp timestamp)
-{
-  object_init_ex(data, duckdb_timestamp_class_entry);
-  duckdb_timestamp_t *timestamp_t = Z_DUCKDB_TIMESTAMP_P(data);
-  timestamp_t->timestamp = timestamp;
-}
-
-static inline void new_date(zval *data, duckdb_date date)
-{
-  object_init_ex(data, duckdb_date_class_entry);
-  duckdb_date_t *date_t = Z_DUCKDB_DATE_P(data);
-  date_t->date = date;
-}
-
-static inline void new_time(zval *data, duckdb_time time)
-{
-  object_init_ex(data, duckdb_time_class_entry);
-  duckdb_time_t *time_t = Z_DUCKDB_TIME_P(data);
-  time_t->time = time;
-  time_t->tz = false;
-}
-
-static inline void new_time_tz(zval *data, duckdb_time_tz time)
-{
-  object_init_ex(data, duckdb_time_class_entry);
-  duckdb_time_t *time_t = Z_DUCKDB_TIME_P(data);
-  time_t->time_tz = time;
-  time_t->tz = true;
-}
