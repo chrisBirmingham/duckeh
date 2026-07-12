@@ -6,27 +6,13 @@ duckdb
 <?php
 $duckDB = new \DuckDB\DuckDB();
 
-$result = $duckDB->query("SELECT '1992-09-20 11:30:00.123456'::TIME as mycolumn1;");
-
-$row = $result->fetch();
-$data = $row['mycolumn1'];
-
-printf("Time string: %s\n", $data);
-printf("Microseconds: %s\n", $data->getTotalMicroseconds());
-printf("Parts\n");
-printf("Hour: %s\n", $data->getHour());
-printf("Minutes: %s\n", $data->getMinutes());
-printf("Seconds: %s\n", $data->getSeconds());
-printf("Offset: %s\n", $data->getOffset());
-printf("Microseconds: %s\n", $data->getMicroseconds());
+$row = $duckDB->query("SELECT '11:30:00.123456'::TIME as time, '11:30:00'::TIME as time2,CAST('12:34:56+02' AS TIME WITH TIME ZONE) AS ttz")->fetch();
+var_dump($row['time']);
+var_dump($row['time2']);
+var_dump($row['ttz']);
 
 ?>
 --EXPECT--
-Time string: 11:30:00.123456
-Microseconds: 41400123456
-Parts
-Hour: 11
-Minutes: 30
-Seconds: 0
-Offset: 0
-Microseconds: 123456
+string(15) "11:30:00.123456"
+string(8) "11:30:00"
+string(14) "12:34:56+02:00"

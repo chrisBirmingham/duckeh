@@ -18,7 +18,6 @@
 #include <duckdb.h>
 #include "duckdb_arginfo.h"
 #include "zend_exceptions.h"
-#include "zend_interfaces.h"
 #include "duckdb_structs.h"
 #include "duckdb_values.h"
 

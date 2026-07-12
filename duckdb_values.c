@@ -99,7 +99,7 @@ static inline duckdb_hugeint duckdb_hugeint_from_uint64(uint64_t input)
   return result;
 }
 
-static zend_string *format_timezone(int32_t offset)
+static void format_timezone(int32_t offset, char* zone)
 {
   char sign = '+';
   int minutes = offset / 60;
@@ -112,7 +112,30 @@ static zend_string *format_timezone(int32_t offset)
     minutes = - minutes;
   }
 
-  return zend_strpprintf(0, "%c%02d:%02d", sign, hours, minutes);
+  snprintf(zone, 7, "%c%02d:%02d", sign, hours, minutes);
+}
+
+static zend_string *format_time(duckdb_time_struct ts, int32_t offset)
+{
+  char zone[8] = {0};
+  char micros[9] = {0};
+
+  if (offset != 0) {
+    format_timezone(offset, zone);
+  }
+
+  if (ts.micros != 0) {
+    /* Remove any trailing 0's */
+    while (ts.micros % 10 == 0) {
+      ts.micros /= 10;
+    }
+
+    snprintf(micros, 8, ".%d", ts.micros);
+  }
+
+  return zend_strpprintf(
+    0, "%02d:%02d:%02d%s%s", ts.hour, ts.min, ts.sec, micros, zone
+  );
 }
 
 static void duckdb_time_to_zval(duckdb_type type, void* buf, idx_t row_index, zval *data)
@@ -136,19 +159,7 @@ static void duckdb_time_to_zval(duckdb_type type, void* buf, idx_t row_index, zv
     ts = duckdb_from_time(time);
   }
 
-  char* c_zone = "";
-  zend_string *zone = NULL;
-
-  if (offset != 0) {
-    zone = format_timezone(offset);
-    c_zone = ZSTR_VAL(zone);
-  }
-
-  ZVAL_STR(data, zend_strpprintf(0, "%02d:%02d:%02d%s", ts.hour, ts.min, ts.sec, c_zone));
-
-  if (zone != NULL) {
-    zend_string_release(zone);
-  }
+  ZVAL_STR(data, format_time(ts, offset));
 }
 
 static void duckdb_timestamp_to_zval(duckdb_type type, void *buf, idx_t row_index, zval *data)
@@ -175,9 +186,7 @@ static void duckdb_timestamp_to_zval(duckdb_type type, void *buf, idx_t row_inde
     case DUCKDB_TYPE_TIMESTAMP_NS:
     {
       duckdb_timestamp_ns timestamp_ns = ((duckdb_timestamp_ns *)buf)[row_index];
-      int64_t nanos = timestamp_ns.nanos % 3600000000000;
-      nanos %= 60000000000;
-      timestamp.micros = (nanos % 1000000000) / 1000;
+      timestamp.micros = timestamp_ns.nanos * 0.001;
       is_finite = duckdb_is_finite_timestamp_ns(timestamp_ns);
       break;
     }
@@ -187,27 +196,22 @@ static void duckdb_timestamp_to_zval(duckdb_type type, void *buf, idx_t row_inde
   }
 
   if (is_finite) {
-    char* c_micros = "";
-    zend_string *micros = NULL;
     ts = duckdb_from_timestamp(timestamp);
+    zend_string *time = format_time(ts.time, 0);
 
-    if (ts.time.micros != 0) {
-      micros = zend_strpprintf(0, ".%d", ts.time.micros);
-      c_micros = ZSTR_VAL(micros);
+    if (ts.date.year < 0) {
+      ts.date.year -= 1;
     }
 
     zend_string *str = zend_strpprintf(
-      0, "%04d-%02d-%02d %02d:%02d:%02d%s",
-      ts.date.year, ts.date.month, ts.date.day, ts.time.hour, ts.time.min, ts.time.sec, c_micros
+      0, "%04d-%02d-%02d %s",
+      ts.date.year, ts.date.month, ts.date.day, ZSTR_VAL(time)
     );
 
-    if (micros != NULL) {
-      zend_string_release(micros);
-    }
-
+    zend_string_release(time);
     ZVAL_STR(data, str);
   } else {
-    ZVAL_STRING(data, (timestamp.micros < 0) ? "-infinite" : "infinite");
+    ZVAL_STRING(data, (timestamp.micros > 0) ? "infinite" : "-infinite");
   }
 }
 
