@@ -1,9 +1,3 @@
-/* duckdb extension for PHP (c) 2025 Daniel Hernández-Marín */
-
-#define PHP_DUCKDB_POSITIVE_INFINITY 1
-#define PHP_DUCKDB_NEGATIVE_INFINITY -1
-#define PHP_DUCKDB_FINITE 0
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -41,6 +35,22 @@ zend_class_entry *duckdb_exception_class_entry = NULL;
 zend_class_entry *duckdb_connection_exception_class_entry = NULL;
 zend_class_entry *duckdb_query_exception_class_entry = NULL;
 zend_class_entry *duckdb_append_exception_class_entry = NULL;
+
+#ifdef ZTS
+  #define DUCKDB_G(v) ZEND_MODULE_GLOBALS_ACCESSOR(duckdb, v)
+#else
+  #define DUCKDB_G(v) (duckdb_globals.v)
+#endif
+
+ZEND_BEGIN_MODULE_GLOBALS(duckdb)
+  zend_ulong appender_max_buffer;
+ZEND_END_MODULE_GLOBALS(duckdb)
+
+ZEND_DECLARE_MODULE_GLOBALS(duckdb)
+
+PHP_INI_BEGIN()
+  STD_PHP_INI_ENTRY("duckdb.appender_max_buffer", "1000", PHP_INI_ALL, OnUpdateLongGEZero, appender_max_buffer, zend_duckdb_globals, duckdb_globals)
+PHP_INI_END()
 
 static inline void free_config(duckdb_config *config)
 {
@@ -391,6 +401,7 @@ static zend_object *duckdb_appender_new(zend_class_entry *ce)
   duckdb_appender_t *append_statement = zend_object_alloc(sizeof(duckdb_appender_t), ce);
   zend_object_std_init(&append_statement->std, ce);
   object_properties_init(&append_statement->std, ce);
+  append_statement->count = 0;
   append_statement->std.handlers = &append_statement_object_handlers;
   return &append_statement->std;
 }
@@ -406,6 +417,16 @@ static zend_function *duckdb_appender_constructor(zend_object *obj)
 {
   zend_throw_error(NULL, "You cannot directly instantiate an Appender, use DuckDB::append instead");
   return NULL;
+}
+
+static zend_result appender_flush(duckdb_appender appender)
+{
+  if (duckdb_appender_flush(appender) == DuckDBError) {
+    appender_error(appender);
+    return FAILURE;
+  }
+
+  return SUCCESS;
 }
 
 static zend_result append_row(duckdb_appender appender, zend_array *row)
@@ -465,6 +486,14 @@ PHP_METHOD(DuckDB_Appender, appendRow)
   if (append_row(append_t->appender, row) == FAILURE) {
     RETURN_THROWS();
   }
+
+  if (++append_t->count >= DUCKDB_G(appender_max_buffer)) {
+    if (appender_flush(append_t->appender) == FAILURE) {
+      RETURN_THROWS();
+    }
+
+    append_t->count = 0;
+  }
 }
 
 PHP_METHOD(DuckDB_Appender, flush)
@@ -476,10 +505,11 @@ PHP_METHOD(DuckDB_Appender, flush)
 
   append_t = Z_APPENDER_P(object);
 
-  if (duckdb_appender_flush(append_t->appender) == DuckDBError) {
-    appender_error(append_t->appender);
+  if (appender_flush(append_t->appender) == FAILURE) {
     RETURN_THROWS();
   }
+
+  append_t->count = 0;
 }
 
 PHP_METHOD(DuckDB_Appender, clear)
@@ -628,6 +658,8 @@ PHP_MINIT_FUNCTION(duckdb)
 {
   register_duckdb_symbols(module_number);
 
+  REGISTER_INI_ENTRIES();
+
   duckdb_exception_class_entry = register_class_DuckDB_DuckDBException(zend_ce_exception);
   duckdb_connection_exception_class_entry = register_class_DuckDB_ConnectionException(duckdb_exception_class_entry);
   duckdb_query_exception_class_entry = register_class_DuckDB_QueryException(duckdb_exception_class_entry);
@@ -671,18 +703,25 @@ PHP_MINFO_FUNCTION(duckdb)
   php_info_print_table_row(2, "Extension Version", PHP_DUCKDB_VERSION);
   php_info_print_table_row(2, "libduckdb Version", duckdb_library_version());
   php_info_print_table_end();
+  DISPLAY_INI_ENTRIES();
+}
+
+PHP_MSHUTDOWN_FUNCTION(duckdb)
+{
+  UNREGISTER_INI_ENTRIES();
+  return SUCCESS;
 }
 
 zend_module_entry duckdb_module_entry = {
   STANDARD_MODULE_HEADER,
-  "duckdb",           /* Extension name */
-  NULL,               /* zend_function_entry */
-  PHP_MINIT(duckdb),  /* PHP_MINIT - Module initialization */
-  NULL,               /* PHP_MSHUTDOWN - Module shutdown */
-  PHP_RINIT(duckdb),  /* PHP_RINIT - Request initialization */
-  NULL,               /* PHP_RSHUTDOWN - Request shutdown */
-  PHP_MINFO(duckdb),  /* PHP_MINFO - Module info */
-  PHP_DUCKDB_VERSION, /* Version */
+  "duckdb",              /* Extension name */
+  NULL,                  /* zend_function_entry */
+  PHP_MINIT(duckdb),     /* PHP_MINIT - Module initialization */
+  PHP_MSHUTDOWN(duckdb), /* PHP_MSHUTDOWN - Module shutdown */
+  PHP_RINIT(duckdb),     /* PHP_RINIT - Request initialization */
+  NULL,                  /* PHP_RSHUTDOWN - Request shutdown */
+  PHP_MINFO(duckdb),     /* PHP_MINFO - Module info */
+  PHP_DUCKDB_VERSION,    /* Version */
   STANDARD_MODULE_PROPERTIES
 };
 

@@ -18,6 +18,7 @@ typedef struct {
 
 typedef struct {
   duckdb_appender appender;
+  int64_t count;
   zend_object std;
 } duckdb_appender_t;
 

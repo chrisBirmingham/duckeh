@@ -21,6 +21,12 @@ for ($i = 2; $i <= 10; $i++) {
 
 $appender->flush();
 
+ini_set('duckdb.appender_max_buffer', 5);
+
+for ($i = 1; $i <= 5; $i++) {
+    $appender->appendRow([$i + 10, 'Duck' . $i + 10]);
+}
+
 foreach ($db->query('SELECT * FROM people')->fetchAll() as $row) {
     echo "{$row['id']},{$row['name']}\n";
 }
@@ -38,3 +44,8 @@ foreach ($db->query('SELECT * FROM people')->fetchAll() as $row) {
 8,Duck8
 9,Duck9
 10,Duck10
+11,Duck11
+12,Duck12
+13,Duck13
+14,Duck14
+15,Duck15

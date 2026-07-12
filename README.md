@@ -147,6 +147,8 @@ Rows aren't automatically appended to the table. You can explicitly flush the ro
 otherwise the rows will either be flushed when an internal buffer is filled up or when the appender is cleaned up via 
 the garbage collector.
 
+To control when the appender implicitly flushes it's records, you can set the ini `duckdb.appender_max_buffer`. This controls the max number of records inside the appenders internal buffer before it flushes to the table. The default value is 1000 records.
+
 If you want to clear the appended rows, you can call the `clear` method.
 
 > [!CAUTION]

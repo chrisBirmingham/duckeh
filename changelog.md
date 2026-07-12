@@ -1,3 +1,7 @@
+# 0.7.1
+
+* Added `duckdb.appender_max_buffer` ini setting to control when the appender automatically flushes it's internal buffer
+
 # 0.7.0
 
 Another datetime release
