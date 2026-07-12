@@ -21,6 +21,6 @@ var_dump($row['finite']);
 ?>
 --EXPECT--
 string(10) "1992-09-20"
-string(8) "infinite"
-string(9) "-infinite"
+string(8) "infinity"
+string(9) "-infinity"
 string(10) "1970-01-01"

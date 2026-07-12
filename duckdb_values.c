@@ -211,7 +211,7 @@ static void duckdb_timestamp_to_zval(duckdb_type type, void *buf, idx_t row_inde
     zend_string_release(time);
     ZVAL_STR(data, str);
   } else {
-    ZVAL_STRING(data, (timestamp.micros > 0) ? "infinite" : "-infinite");
+    ZVAL_STRING(data, (timestamp.micros > 0) ? "infinity" : "-infinity");
   }
 }
 
@@ -220,7 +220,7 @@ static void duckdb_date_to_zval(duckdb_date date, zval *data)
   duckdb_date_struct ds = duckdb_from_date(date);
 
   if (!duckdb_is_finite_date(date)) {
-    ZVAL_STRING(data, (date.days > 0) ? "infinite" : "-infinite");
+    ZVAL_STRING(data, (date.days > 0) ? "infinity" : "-infinity");
   } else {
     if (ds.year < 0) {
       ds.year -= 1;
