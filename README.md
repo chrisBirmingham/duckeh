@@ -156,4 +156,4 @@ If you want to clear the appended rows, you can call the `clear` method.
 ### Timezone Considerations
 
 For some reason, when the duckdb api retrieves a timestamp field, if the field contains timezone information, it will instead
-return's a timestamp datatype thus loosing the timezone information. This problem does not affect the Time field type.
+return's a timestamp datatype thus losing the timezone information. This problem does not affect the Time field type.

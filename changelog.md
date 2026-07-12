@@ -1,3 +1,11 @@
+# 0.7.0
+
+Another datetime release
+
+* Deleted Date, Time and Timestamp classes
+* Instead the extension returns a string representation of the datetime field
+  * This should make it easier for interacting with PHP's own DateTime class
+
 # 0.6.4
 
 * Update config.m4 to be a bit more rubust.
