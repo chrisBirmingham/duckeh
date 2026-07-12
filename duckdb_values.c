@@ -99,59 +99,136 @@ static inline duckdb_hugeint duckdb_hugeint_from_uint64(uint64_t input)
   return result;
 }
 
-static void duckdb_time_to_zval(duckdb_type type, void* buf, idx_t row_index, zval *data)
+static void format_timezone(int32_t offset, char* zone)
 {
-  if (type == DUCKDB_TYPE_TIME_TZ) {
-    new_time_tz(data, ((duckdb_time_tz *)buf)[row_index]);
-  } else {
-    duckdb_time time;
+  char sign = '+';
+  int minutes = offset / 60;
+  int hours = minutes / 60;
+  minutes %= 60;
 
-    if (type == DUCKDB_TYPE_TIME_NS) {
-      duckdb_time_ns time_ns = ((duckdb_time_ns *)buf)[row_index];
-      time.micros = (time_ns.nanos == 0) ? 0 : time_ns.nanos / 1000;
-    } else {
-      time = ((duckdb_time *)buf)[row_index];
-    }
-
-    new_time(data, time);
+  if (offset < 0) {
+    sign = '-';
+    hours = -hours;
+    minutes = - minutes;
   }
+
+  snprintf(zone, 7, "%c%02d:%02d", sign, hours, minutes);
 }
 
-static inline duckdb_timestamp duckdb_timestamp_to_timestamp(duckdb_value value)
+static zend_string *format_time(duckdb_time_struct ts, int32_t offset)
 {
-  duckdb_timestamp timestamp = duckdb_get_timestamp(value);
-  duckdb_destroy_value(&value);
-  return timestamp;
+  char zone[8] = {0};
+  char micros[9] = {0};
+
+  if (offset != 0) {
+    format_timezone(offset, zone);
+  }
+
+  if (ts.micros != 0) {
+    /* Remove any trailing 0's */
+    while (ts.micros % 10 == 0) {
+      ts.micros /= 10;
+    }
+
+    snprintf(micros, 8, ".%d", ts.micros);
+  }
+
+  return zend_strpprintf(
+    0, "%02d:%02d:%02d%s%s", ts.hour, ts.min, ts.sec, micros, zone
+  );
+}
+
+static void duckdb_time_to_zval(duckdb_type type, void* buf, idx_t row_index, zval *data)
+{
+  duckdb_time time;
+  duckdb_time_struct ts;
+  int32_t offset = 0;
+
+  if (type == DUCKDB_TYPE_TIME_NS) {
+    duckdb_time_ns time_ns = ((duckdb_time_ns *)buf)[row_index];
+    time.micros = (time_ns.nanos == 0) ? 0 : time_ns.nanos / 1000;
+  } else {
+    time = ((duckdb_time *)buf)[row_index];
+  }
+
+  if (type == DUCKDB_TYPE_TIME_TZ) {
+    duckdb_time_tz_struct tz = duckdb_from_time_tz(((duckdb_time_tz *)buf)[row_index]);
+    ts = tz.time;
+    offset = tz.offset;
+  } else {
+    ts = duckdb_from_time(time);
+  }
+
+  ZVAL_STR(data, format_time(ts, offset));
 }
 
 static void duckdb_timestamp_to_zval(duckdb_type type, void *buf, idx_t row_index, zval *data)
 {
   duckdb_timestamp timestamp;
+  duckdb_timestamp_struct ts;
+  bool is_finite;
 
   switch (type) {
     case DUCKDB_TYPE_TIMESTAMP_S:
     {
       duckdb_timestamp_s timestamp_s = ((duckdb_timestamp_s *)buf)[row_index];
-      timestamp = duckdb_timestamp_to_timestamp(duckdb_create_timestamp_s(timestamp_s));
+      timestamp.micros = timestamp_s.seconds * 1000000;
+      is_finite = duckdb_is_finite_timestamp_s(timestamp_s);
       break;
     }
     case DUCKDB_TYPE_TIMESTAMP_MS:
     {
       duckdb_timestamp_ms timestamp_ms = ((duckdb_timestamp_ms *)buf)[row_index];
-      timestamp = duckdb_timestamp_to_timestamp(duckdb_create_timestamp_ms(timestamp_ms));
+      timestamp.micros = timestamp_ms.millis * 1000;
+      is_finite = duckdb_is_finite_timestamp_ms(timestamp_ms);
       break;
     }
     case DUCKDB_TYPE_TIMESTAMP_NS:
     {
       duckdb_timestamp_ns timestamp_ns = ((duckdb_timestamp_ns *)buf)[row_index];
-      timestamp = duckdb_timestamp_to_timestamp(duckdb_create_timestamp_ns(timestamp_ns));
+      timestamp.micros = timestamp_ns.nanos * 0.001;
+      is_finite = duckdb_is_finite_timestamp_ns(timestamp_ns);
       break;
     }
     default:
       timestamp = ((duckdb_timestamp *)buf)[row_index];
+      is_finite = duckdb_is_finite_timestamp(timestamp);
   }
 
-  new_timestamp(data, timestamp);
+  if (is_finite) {
+    ts = duckdb_from_timestamp(timestamp);
+    zend_string *time = format_time(ts.time, 0);
+
+    if (ts.date.year < 0) {
+      ts.date.year -= 1;
+    }
+
+    zend_string *str = zend_strpprintf(
+      0, "%04d-%02d-%02d %s",
+      ts.date.year, ts.date.month, ts.date.day, ZSTR_VAL(time)
+    );
+
+    zend_string_release(time);
+    ZVAL_STR(data, str);
+  } else {
+    ZVAL_STRING(data, (timestamp.micros > 0) ? "infinity" : "-infinity");
+  }
+}
+
+static void duckdb_date_to_zval(duckdb_date date, zval *data)
+{
+  duckdb_date_struct ds = duckdb_from_date(date);
+
+  if (!duckdb_is_finite_date(date)) {
+    ZVAL_STRING(data, (date.days > 0) ? "infinity" : "-infinity");
+  } else {
+    if (ds.year < 0) {
+      ds.year -= 1;
+    }
+
+    zend_string *str = zend_strpprintf(0, "%04d-%02d-%02d", ds.year, ds.month, ds.day);
+    ZVAL_STR(data, str);
+  }
 }
 
 static void duckdb_struct_vector_to_array(duckdb_vector vector, idx_t row_index, zval *array)
@@ -393,7 +470,7 @@ static void duckdb_value_to_zval(duckdb_vector vector, duckdb_type type, idx_t r
       ZVAL_DOUBLE(data, ((double *)buf)[row_index]);
       break;
     case DUCKDB_TYPE_DATE:
-      new_date(data, ((duckdb_date *)buf)[row_index]);
+      duckdb_date_to_zval(((duckdb_date *)buf)[row_index], data);
       break;
     case DUCKDB_TYPE_TIME:
     case DUCKDB_TYPE_TIME_NS:
