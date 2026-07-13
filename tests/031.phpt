@@ -5,7 +5,7 @@ duckdb
 --FILE--
 <?php
 $db = new \DuckDB\DuckDB();
-$res = $db->query('CREATE TABLE people (id INTEGER, name VARCHAR, dob DATE)');
+$db->query('CREATE TABLE people (id INTEGER, name VARCHAR, dob DATE)');
 $appender = $db->append('people');
 
 $appender->appendRow([1, 'Duck', '1995-01-01']);
@@ -31,6 +31,17 @@ foreach ($db->query('SELECT * FROM people')->fetchAll() as $row) {
     echo "{$row['id']},{$row['name']},{$row['dob']}\n";
 }
 
+$db->query('CREATE TABLE default_test (id INTEGER DEFAULT 30)');
+$appender = $db->append('default_test');
+
+$appender->appendRow([new \DuckDB\DefaultValue()]);
+$appender->appendRow([1]);
+$appender->flush();
+
+foreach ($db->query('SELECT * FROM default_test')->fetchAll() as $row) {
+    echo "{$row['id']}\n";
+}
+
 ?>
 --EXPECT--
 1,Duck,1995-01-01
@@ -49,3 +60,5 @@ foreach ($db->query('SELECT * FROM people')->fetchAll() as $row) {
 13,Duck13,1995-01-13
 14,Duck14,1995-01-14
 15,Duck15,1995-01-15
+30
+1

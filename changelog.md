@@ -1,3 +1,8 @@
+# 0.7.2
+
+* Added DefaultValue type for use in Append Statements for when we want to specify the default value
+* Replaced higher level to_duckdb_value functions with lower level bind and append functions. Should reduce the amount of allocations and duckdb converting values when it shouldn't
+
 # 0.7.1
 
 * Added `duckdb.appender_max_buffer` ini setting to control when the appender automatically flushes it's internal buffer

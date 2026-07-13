@@ -360,4 +360,9 @@ namespace DuckDB {
          */
         public function clear(): void {}
     }
+
+    /**
+     * @not-serializable
+     */
+    final class DefaultValue {}
 }

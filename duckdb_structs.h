@@ -29,6 +29,10 @@ typedef struct {
   zend_object std;
 } duckdb_result_t;
 
+typedef struct {
+  zend_object std;
+} duckdb_default_value_t;
+
 /* Type transformers */
 static inline duckdb_t *duckdb_t_from_obj(zend_object *obj)
 {
@@ -50,15 +54,22 @@ static inline duckdb_result_t *duckdb_result_t_from_obj(zend_object *obj)
   return (duckdb_result_t *)((char *)(obj)-XtOffsetOf(duckdb_result_t, std));
 }
 
+static inline duckdb_default_value_t *duckdb_default_value_t_from_obj(zend_object *obj)
+{
+  return (duckdb_default_value_t *)((char *)(obj)-XtOffsetOf(duckdb_default_value_t, std));
+}
+
 #define Z_DUCKDB_P(zv) duckdb_t_from_obj(Z_OBJ_P(zv))
 #define Z_PREPARED_STATEMENT_P(zv) prepared_statement_t_from_obj(Z_OBJ_P(zv))
 #define Z_APPENDER_P(zv) appender_t_from_obj(Z_OBJ_P(zv))
 #define Z_DUCKDB_RESULT_P(zv) duckdb_result_t_from_obj(Z_OBJ_P(zv))
+#define Z_DUCKDB_DEFAULT_VALUE_P(zv) duckdb_default_value_t_from_obj(Z_OBJ_P(zv))
 
 extern zend_class_entry *duckdb_class_entry;
 extern zend_class_entry *duckdb_prepared_statement_class_entry;
 extern zend_class_entry *duckdb_appender_class_entry;
 extern zend_class_entry *duckdb_result_class_entry;
+extern zend_class_entry *duckdb_default_value_class_entry;
 extern zend_class_entry *duckdb_exception_class_entry;
 extern zend_class_entry *duckdb_connection_exception_class_entry;
 extern zend_class_entry *duckdb_query_exception_class_entry;

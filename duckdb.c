@@ -1,4 +1,3 @@
-#include "zend_types.h"
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -27,11 +26,13 @@ static zend_object_handlers duckdb_object_handlers;
 static zend_object_handlers prepared_statement_object_handlers;
 static zend_object_handlers append_statement_object_handlers;
 static zend_object_handlers result_object_handlers;
+static zend_object_handlers default_value_handlers;
 
 zend_class_entry *duckdb_class_entry = NULL;
 zend_class_entry *duckdb_prepared_statement_class_entry = NULL;
 zend_class_entry *duckdb_appender_class_entry = NULL;
 zend_class_entry *duckdb_result_class_entry = NULL;
+zend_class_entry *duckdb_default_value_class_entry = NULL;
 zend_class_entry *duckdb_exception_class_entry = NULL;
 zend_class_entry *duckdb_connection_exception_class_entry = NULL;
 zend_class_entry *duckdb_query_exception_class_entry = NULL;
@@ -475,6 +476,11 @@ static zend_result append_row(duckdb_appender appender, zend_array *row)
       case IS_NULL:
         state = duckdb_append_null(appender);
         break;
+      case IS_OBJECT:
+        if (instanceof_function(Z_OBJCE_P(value), duckdb_default_value_class_entry)) {
+          state = duckdb_append_default(appender);
+          break;
+        }
       default:
         zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value in row. Columns values must be scalar type");
         return FAILURE;
@@ -675,6 +681,21 @@ PHP_METHOD(DuckDB_Result, fetchAll)
   }
 }
 
+static zend_object *duckdb_default_value_new(zend_class_entry *ce)
+{
+  duckdb_default_value_t *def = zend_object_alloc(sizeof(duckdb_default_value_t), ce);
+  zend_object_std_init(&def->std, ce);
+  object_properties_init(&def->std, ce);
+  def->std.handlers = &default_value_handlers;
+  return &def->std;
+}
+
+static void duckdb_default_value_free_obj(zend_object *obj)
+{
+  duckdb_default_value_t *def = duckdb_default_value_t_from_obj(obj);
+  zend_object_std_dtor(&def->std);
+}
+
 PHP_RINIT_FUNCTION(duckdb)
 {
 #if defined(ZTS) && defined(COMPILE_DL_DUCKDB)
@@ -699,6 +720,7 @@ PHP_MINIT_FUNCTION(duckdb)
   memcpy(&prepared_statement_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&append_statement_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
   memcpy(&result_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+  memcpy(&default_value_handlers, &std_object_handlers, sizeof(zend_object_handlers));
 
   duckdb_class_entry = register_class_DuckDB_DuckDB();
   duckdb_class_entry->create_object = duckdb_new;
@@ -722,6 +744,11 @@ PHP_MINIT_FUNCTION(duckdb)
   result_object_handlers.offset = XtOffsetOf(duckdb_result_t, std);
   result_object_handlers.get_constructor = duckdb_result_constructor;
   result_object_handlers.free_obj = duckdb_result_free_obj;
+
+  duckdb_default_value_class_entry = register_class_DuckDB_DefaultValue();
+  duckdb_default_value_class_entry->create_object = duckdb_default_value_new;
+  default_value_handlers.offset = XtOffsetOf(duckdb_default_value_t, std);
+  default_value_handlers.free_obj = duckdb_default_value_free_obj;
 
   return SUCCESS;
 }

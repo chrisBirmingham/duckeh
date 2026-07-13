@@ -151,6 +151,8 @@ To control when the appender implicitly flushes it's records, you can set the in
 
 If you want to clear the appended rows, you can call the `clear` method.
 
+If you want to use the default value for an column in the append statement, you can now create a new `DefaultValue` class and use that where needed.
+
 > [!CAUTION]
 > Care should be taken when inserting rows into the appender. Should an exception be thrown because of type mismatches,
 > the appender can be left in an incomplete state. In such a situation, it's best that you call the clear method

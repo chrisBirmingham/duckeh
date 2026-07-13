@@ -1,5 +1,5 @@
 /* This is a generated file, edit duckdb.stub.php instead.
- * Stub hash: c8fcd1c73500e8b5a4bf5629d12d1656f5543564 */
+ * Stub hash: 00a9dba376f698bc7eaea5f8243e6a1d27ca8786 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_DuckDB_DuckDB___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, path, IS_STRING, 1, "null")
@@ -253,6 +253,21 @@ static zend_class_entry *register_class_DuckDB_Appender(void)
 #else
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
 	class_entry->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
+#endif
+
+	return class_entry;
+}
+
+static zend_class_entry *register_class_DuckDB_DefaultValue(void)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DuckDB", "DefaultValue", NULL);
+#if (PHP_VERSION_ID >= 80400)
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL|ZEND_ACC_NOT_SERIALIZABLE);
+#else
+	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	class_entry->ce_flags |= ZEND_ACC_FINAL|ZEND_ACC_NOT_SERIALIZABLE;
 #endif
 
 	return class_entry;
