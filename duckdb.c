@@ -1,3 +1,4 @@
+#include "zend_types.h"
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -288,52 +289,66 @@ static zend_function *duckdb_prepared_statement_constructor(zend_object *obj)
   return NULL;
 }
 
-static idx_t bind_param_string(duckdb_prepared_statement *stmt, const char *param, zval *value, duckdb_value *ret)
+static idx_t bind_param_string(duckdb_prepared_statement *stmt, const char *param)
 {
-  idx_t index;
+  idx_t idx;
 
-  if (duckdb_bind_parameter_index(*stmt, &index, param) == DuckDBError) {
+  if (duckdb_bind_parameter_index(*stmt, &idx, param) == DuckDBError) {
     zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Unknown named parameter '%s'", param);
     return 0;
   }
 
-  if ((*ret = zval_to_duckval(value)) == NULL) {
-    zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value provided for named parameter '%s'. Value must be a scalar type", param);
-    return 0;
-  }
-
-  return index;
+  return idx;
 }
 
-static idx_t bind_param_numeric(duckdb_prepared_statement *stmt, zend_long index, zval *value, duckdb_value *ret)
+static idx_t bind_param_numeric(duckdb_prepared_statement *stmt, zend_long idx)
 {
-  if (index <= 0 || index > duckdb_nparams(*stmt)) {
-    zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Parameter index '" ZEND_LONG_FMT "' is out of bounds", index);
+  if (idx <= 0 || idx > duckdb_nparams(*stmt)) {
+    zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Parameter index '" ZEND_LONG_FMT "' is out of bounds", idx);
     return 0;
   }
 
-  if ((*ret = zval_to_duckval(value)) == NULL) {
-    zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value provided for parameter index '" ZEND_LONG_FMT "'. Value must be a scalar type", index);
-    return 0;
-  }
-
-  return index;
+  return idx;
 }
 
 static zend_result bind_param(duckdb_prepared_statement *stmt, zend_string *str_param, zend_long long_param, zval *value)
 {
-  duckdb_value val = NULL;
   duckdb_state state;
+
   idx_t idx = (str_param)
-    ? bind_param_string(stmt, ZSTR_VAL(str_param), value, &val)
-    : bind_param_numeric(stmt, long_param, value, &val);
+    ? bind_param_string(stmt, ZSTR_VAL(str_param))
+    : bind_param_numeric(stmt, long_param);
 
   if (idx == 0) {
     return FAILURE;
   }
 
-  state = duckdb_bind_value(*stmt, idx, val);
-  duckdb_destroy_value(&val);
+  switch (Z_TYPE_P(value)) {
+    case IS_LONG:
+      state = duckdb_bind_int64(*stmt, idx, Z_LVAL_P(value));
+      break;
+    case IS_DOUBLE:
+      state = duckdb_bind_double(*stmt, idx, Z_DVAL_P(value));
+      break;
+    case IS_TRUE:
+    case IS_FALSE:
+      state = duckdb_bind_boolean(*stmt, idx, Z_TYPE_P(value) == IS_TRUE);
+      break;
+    case IS_STRING:
+      state = duckdb_bind_varchar(*stmt, idx, Z_STRVAL_P(value));
+      break;
+    case IS_NULL:
+      state = duckdb_bind_null(*stmt, idx);
+      break;
+    default:
+      if (str_param) {
+        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value provided for named parameter '%s'. Value must be a scalar type", ZSTR_VAL(str_param));
+      } else {
+        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value provided for parameter index '" ZEND_LONG_FMT "'. Value must be a scalar type", long_param);
+      }
+
+      return FAILURE;
+  }
 
   if (state == DuckDBError) {
     zend_throw_exception(duckdb_query_exception_class_entry, duckdb_prepare_error(*stmt), 0);
@@ -441,19 +456,34 @@ static zend_result append_row(duckdb_appender appender, zend_array *row)
   }
 
   ZEND_HASH_FOREACH_VAL(row, value) {
-    duckdb_value val = zval_to_duckval(value);
+    duckdb_state state;
 
-    if (val == NULL) {
-      zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value in row. Columns values must be scalar type");
-      return FAILURE;
+    switch (Z_TYPE_P(value)) {
+      case IS_LONG:
+        state = duckdb_append_int64(appender, Z_LVAL_P(value));
+        break;
+      case IS_DOUBLE:
+        state = duckdb_append_double(appender, Z_DVAL_P(value));
+        break;
+      case IS_TRUE:
+      case IS_FALSE:
+        state = duckdb_append_bool(appender, Z_TYPE_P(value) == IS_TRUE);
+        break;
+      case IS_STRING:
+        state = duckdb_append_varchar(appender, Z_STRVAL_P(value));
+        break;
+      case IS_NULL:
+        state = duckdb_append_null(appender);
+        break;
+      default:
+        zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value in row. Columns values must be scalar type");
+        return FAILURE;
     }
 
-    if (duckdb_append_value(appender, val) == DuckDBError) {
+    if (state == DuckDBError) {
       appender_error(appender);
       return FAILURE;
     }
-
-    duckdb_destroy_value(&val);
   } ZEND_HASH_FOREACH_END();
 
   if (duckdb_appender_end_row(appender) == DuckDBError) {

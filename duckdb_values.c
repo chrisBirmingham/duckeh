@@ -586,23 +586,3 @@ void duckval_to_zval(duckdb_vector vector, duckdb_type type, idx_t row_index, zv
 
   ZVAL_NULL(data);
 }
-
-duckdb_value zval_to_duckval(zval *value)
-{
-  switch (Z_TYPE_P(value)) {
-    case IS_LONG:
-      return duckdb_create_int64(Z_LVAL_P(value));
-    case IS_DOUBLE:
-      return duckdb_create_double(Z_DVAL_P(value));
-    case IS_TRUE:
-      return duckdb_create_bool(true);
-    case IS_FALSE:
-      return duckdb_create_bool(false);
-    case IS_STRING:
-      return duckdb_create_varchar(Z_STRVAL_P(value));
-    case IS_NULL:
-      return duckdb_create_null_value();
-    default:
-      return NULL;
-  }
-}
