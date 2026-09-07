@@ -6,7 +6,7 @@ duckdb
 <?php
 try {
   new \DuckDB\DuckDB(options: ['threads' => 7]);
-} catch (\InvalidArgumentException $e) {
+} catch (\ValueError $e) {
   echo $e->getMessage() . "\n";
 }
 
@@ -14,7 +14,7 @@ try {
 
 try {
   new \DuckDB\DuckDB(options: ['threa' => '']);
-} catch (\InvalidArgumentException|\DuckDB\ConnectionException $e) {
+} catch (\DuckDB\ConnectionException $e) {
   echo "Invalid option\n";
 }
 ?>

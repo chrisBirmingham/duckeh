@@ -1,8 +1,8 @@
 # Duckeh - DuckDB for PHP
 
-A PHP extension for the [DuckDB](https://duckdb.org/) API
+A PHP extension for the [DuckDB][1] API
 
-This is a fork of [Daniel Hernández Marín](https://github.com/dhernandez) original work found [here](https://github.com/satur-io/duckdb)
+This is a fork of [Daniel Hernández Marín][2] original work found [here][3]
 
 > [!CAUTION]
 > This project is in an early development stage and there are probably a tonne of bugs. Nevertheless, any contribution will be welcome.
@@ -14,7 +14,7 @@ This is a fork of [Daniel Hernández Marín](https://github.com/dhernandez) orig
 
 ## Installation (PIE)
 
-You can install this extension using [PIE](https://github.com/php/pie):
+You can install this extension using [PIE][4]:
 
 ```sh
 pie install intermaterium/duckeh
@@ -136,7 +136,7 @@ You can then insert a row `appendRow` method:
 ```php
 $appender->appendRow([1, 'Duck']);
 
-$db->query('SELECT * FROM people')->print();
+$db->query('SELECT * FROM people');
 
 for ($i = 2; $i <= 10; $i++) {
     $appender->appendRow([$i, 'Duck' . $i]);
@@ -161,3 +161,8 @@ If you want to use the default value for an column in the append statement, you 
 
 For some reason, when the duckdb api retrieves a timestamp field, if the field contains timezone information, it will instead
 return's a timestamp datatype thus losing the timezone information. This problem does not affect the Time field type.
+
+[1]: https://duckdb.org/
+[2]: https://github.com/dhernandez
+[3]: https://github.com/satur-io/duckdb
+[4]: https://github.com/php/pie

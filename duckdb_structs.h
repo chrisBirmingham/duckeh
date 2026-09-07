@@ -36,27 +36,27 @@ typedef struct {
 /* Type transformers */
 static inline duckdb_t *duckdb_t_from_obj(zend_object *obj)
 {
-  return (duckdb_t *)((char *)(obj)-XtOffsetOf(duckdb_t, std));
+  return (duckdb_t *)((char *)(obj)-offsetof(duckdb_t, std));
 }
 
 static inline duckdb_prepared_statement_t *prepared_statement_t_from_obj(zend_object *obj)
 {
-  return (duckdb_prepared_statement_t *)((char *)(obj)-XtOffsetOf(duckdb_prepared_statement_t, std));
+  return (duckdb_prepared_statement_t *)((char *)(obj)-offsetof(duckdb_prepared_statement_t, std));
 }
 
 static inline duckdb_appender_t *appender_t_from_obj(zend_object *obj)
 {
-  return (duckdb_appender_t *)((char *)(obj)-XtOffsetOf(duckdb_appender_t, std));
+  return (duckdb_appender_t *)((char *)(obj)-offsetof(duckdb_appender_t, std));
 }
 
 static inline duckdb_result_t *duckdb_result_t_from_obj(zend_object *obj)
 {
-  return (duckdb_result_t *)((char *)(obj)-XtOffsetOf(duckdb_result_t, std));
+  return (duckdb_result_t *)((char *)(obj)-offsetof(duckdb_result_t, std));
 }
 
 static inline duckdb_default_value_t *duckdb_default_value_t_from_obj(zend_object *obj)
 {
-  return (duckdb_default_value_t *)((char *)(obj)-XtOffsetOf(duckdb_default_value_t, std));
+  return (duckdb_default_value_t *)((char *)(obj)-offsetof(duckdb_default_value_t, std));
 }
 
 #define Z_DUCKDB_P(zv) duckdb_t_from_obj(Z_OBJ_P(zv))

@@ -6,21 +6,11 @@
 #include "ext/spl/spl_exceptions.h"
 #include "ext/standard/info.h"
 #include "php_duckdb.h"
-#ifndef ZEND_ACC_NOT_SERIALIZABLE
-#define ZEND_ACC_NOT_SERIALIZABLE 0
-#endif
 #include <duckdb.h>
 #include "duckdb_arginfo.h"
 #include "zend_exceptions.h"
 #include "duckdb_structs.h"
 #include "duckdb_values.h"
-
-/* For compatibility with older PHP versions */
-#ifndef ZEND_PARSE_PARAMETERS_NONE
-#define ZEND_PARSE_PARAMETERS_NONE()  \
-  ZEND_PARSE_PARAMETERS_START(0, 0) \
-  ZEND_PARSE_PARAMETERS_END()
-#endif
 
 static zend_object_handlers duckdb_object_handlers;
 static zend_object_handlers prepared_statement_object_handlers;
@@ -70,14 +60,19 @@ static zend_result create_config(duckdb_config *config, HashTable *options)
     return FAILURE;
   }
 
-  ZEND_HASH_MAP_FOREACH_STR_KEY_VAL(options, key, value) {
+  ZEND_HASH_FOREACH_STR_KEY_VAL(options, key, value) {
+    if (!key) {
+      zend_value_error("Invalid integer key in $options argument");
+      return FAILURE;
+    }
+
     if (Z_TYPE_P(value) != IS_STRING) {
-      zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Invalid value for config option '%s'. Value must be a string", ZSTR_VAL(key));
+      zend_value_error("Invalid value for config option '%s'. Value must be a string", ZSTR_VAL(key));
       return FAILURE;
     }
 
     if (duckdb_set_config(*config, ZSTR_VAL(key), Z_STRVAL_P(value)) == DuckDBError) {
-      zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Failed to set config option '%s'", ZSTR_VAL(key));
+      zend_throw_exception_ex(duckdb_exception_class_entry, 0, "Failed to set config option '%s'", ZSTR_VAL(key));
       return FAILURE;
     }
   } ZEND_HASH_FOREACH_END();
@@ -452,7 +447,7 @@ static zend_result append_row(duckdb_appender appender, zend_array *row)
   zend_ulong expected = duckdb_appender_column_count(appender);
 
   if (len != expected) {
-    zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Row does not match expected column count. Expected '" ZEND_LONG_FMT "' got '" ZEND_LONG_FMT"'", expected, len);
+    zend_value_error("Row does not match expected column count. Expected '" ZEND_LONG_FMT "' got '" ZEND_LONG_FMT"'", expected, len);
     return FAILURE;
   }
 
@@ -724,30 +719,30 @@ PHP_MINIT_FUNCTION(duckdb)
 
   duckdb_class_entry = register_class_DuckDB_DuckDB();
   duckdb_class_entry->create_object = duckdb_new;
-  duckdb_object_handlers.offset = XtOffsetOf(duckdb_t, std);
+  duckdb_object_handlers.offset = offsetof(duckdb_t, std);
   duckdb_object_handlers.free_obj = duckdb_free_obj;
 
   duckdb_prepared_statement_class_entry = register_class_DuckDB_PreparedStatement();
   duckdb_prepared_statement_class_entry->create_object = duckdb_prepared_statement_new;
-  prepared_statement_object_handlers.offset = XtOffsetOf(duckdb_prepared_statement_t, std);
+  prepared_statement_object_handlers.offset = offsetof(duckdb_prepared_statement_t, std);
   prepared_statement_object_handlers.get_constructor = duckdb_prepared_statement_constructor;
   prepared_statement_object_handlers.free_obj = duckdb_prepared_statement_free_obj;
 
   duckdb_appender_class_entry = register_class_DuckDB_Appender();
   duckdb_appender_class_entry->create_object = duckdb_appender_new;
-  append_statement_object_handlers.offset = XtOffsetOf(duckdb_appender_t, std);
+  append_statement_object_handlers.offset = offsetof(duckdb_appender_t, std);
   append_statement_object_handlers.get_constructor = duckdb_appender_constructor;
   append_statement_object_handlers.free_obj = duckdb_appender_free_obj;
 
   duckdb_result_class_entry = register_class_DuckDB_Result();
   duckdb_result_class_entry->create_object = duckdb_result_new;
-  result_object_handlers.offset = XtOffsetOf(duckdb_result_t, std);
+  result_object_handlers.offset = offsetof(duckdb_result_t, std);
   result_object_handlers.get_constructor = duckdb_result_constructor;
   result_object_handlers.free_obj = duckdb_result_free_obj;
 
   duckdb_default_value_class_entry = register_class_DuckDB_DefaultValue();
   duckdb_default_value_class_entry->create_object = duckdb_default_value_new;
-  default_value_handlers.offset = XtOffsetOf(duckdb_default_value_t, std);
+  default_value_handlers.offset = offsetof(duckdb_default_value_t, std);
   default_value_handlers.free_obj = duckdb_default_value_free_obj;
 
   return SUCCESS;

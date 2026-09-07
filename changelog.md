@@ -1,3 +1,10 @@
+# 0.7.3
+
+* Replaced `XtOffsetOf` with `offsetof`. For 8.6 support
+* Check for invalid indexes in config array
+* Throw duckdb exception if we fail to set a config option
+* Remove macros that were for older versions of php which we don't support
+
 # 0.7.2
 
 * Added DefaultValue type for use in Append Statements for when we want to specify the default value
